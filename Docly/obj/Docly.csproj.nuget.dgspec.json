@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly.csproj": {}
+    "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly\\Docly.csproj": {}
   },
   "projects": {
-    "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly.csproj": {
+    "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly\\Docly.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly.csproj",
+        "projectUniqueName": "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly\\Docly.csproj",
         "projectName": "Docly",
-        "projectPath": "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly.csproj",
+        "projectPath": "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly\\Docly.csproj",
         "packagesPath": "C:\\Users\\mmigl\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\obj\\",
+        "outputPath": "C:\\Users\\mmigl\\Desktop\\uni\\Programmazione\\web II\\Docly\\Docly\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mmigl\\AppData\\Roaming\\NuGet\\NuGet.Config"
