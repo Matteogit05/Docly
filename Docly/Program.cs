@@ -1,10 +1,15 @@
+using Microsoft.EntityFrameworkCore;
 using Docly.Components;
+using Docly.Data.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite("Data Source=docly.db"));
 
 var app = builder.Build();
 
