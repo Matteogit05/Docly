@@ -70,3 +70,6 @@ obj/
 dist/
 publish/
 PublishProfiles/
+
+DATABASE_STRUCTURE.txt
+Properties/launchSettings.json
