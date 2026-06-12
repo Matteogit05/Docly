@@ -70,3 +70,6 @@ obj/
 dist/
 publish/
 PublishProfiles/
+
+*.txt
+Properties/launchSettings.json
