@@ -1,0 +1,75 @@
+# ========== BUILD & COMPILATION ==========
+bin/
+obj/
+.vs/
+.vscode/
+*.csproj.user
+*.sln.user
+*.userprefs
+
+# ========== IDE & EDITOR ==========
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ========== VISUAL STUDIO CACHE ==========
+.vs/
+*.suo
+*.VC.db
+*.VC.VC.opendb
+
+# ========== CONFIGURATION SENSIBILI ==========
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json.example
+.env
+.env.local
+.env.*.local
+local.settings.json
+
+# ========== DATABASE ==========
+*.db
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf
+
+# ========== LOGS ==========
+logs/
+*.log
+*.logs
+
+# ========== RUNTIME & NUGET ==========
+.nuget/
+packages/
+!packages/repositories.config
+*.nupkg
+*.snupkg
+
+# ========== TESTING ==========
+TestResults/
+*.trx
+
+# ========== AZURE & CLOUD ==========
+.funcignore
+local.settings.json
+bin/
+obj/
+
+# ========== CERTIFICATES & KEYS ==========
+*.pfx
+*.pem
+*.key
+*.crt
+*.cer
+
+# ========== MISC ==========
+dist/
+publish/
+PublishProfiles/
+
+*.txt
+Properties/launchSettings.json
