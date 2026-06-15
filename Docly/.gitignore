@@ -24,6 +24,7 @@ Thumbs.db
 # ========== CONFIGURATION SENSIBILI ==========
 appsettings.Development.json
 appsettings.*.json
+appsettings.json
 !appsettings.json.example
 .env
 .env.local

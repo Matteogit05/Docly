@@ -1,0 +1,40 @@
+<article class="product-card">
+    @if (!string.IsNullOrWhiteSpace(Badge))
+    {
+        <span class="product-card__badge">@Badge</span>
+    }
+
+    <div class="product-card__content">
+        <h3 class="product-card__title">@Title</h3>
+
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p class="product-card__subtitle">@Subtitle</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="product-card__description">@Description</p>
+        }
+    </div>
+
+    <button type="button" class="product-card__button" @onclick="OnClick">
+        @TextButton
+    </button>
+</article>
+
+@code
+{
+    [Parameter]
+    public string? Title { get; set; } = string.Empty;
+    [Parameter]
+    public string? Subtitle { get; set; } = string.Empty;
+    [Parameter]
+    public string? Description { get; set; } = string.Empty;
+    [Parameter]
+    public string? Badge { get; set; } = string.Empty;
+    [Parameter]
+    public string? TextButton { get; set; } = "Apri";
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+}
