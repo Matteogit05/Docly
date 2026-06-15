@@ -231,6 +231,4 @@ public static class DbSeeder
         db.DoctorAvailabilities.AddRange(availabilitiesToAdd);
         await db.SaveChangesAsync();
     }
-
-    //SLIDE 30
 }

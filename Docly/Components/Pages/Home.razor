@@ -1,7 +1,27 @@
 ﻿@page "/"
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+@using Docly.Data.Entities
+@using Microsoft.EntityFrameworkCore
+@using Docly.Data.Shared
+
+@rendermode InteractiveServer
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Welcome, UserName</h1>
 
-Welcome to your new app.
+<h3>Your main doctors</h3>
+
+<div class="doctor-grid">
+    @foreach (var favdoctor in Db.FavoriteDoctors) // and @favdoctor.PatientId == currentUserId
+    {
+        <ProductCard 
+            Title="@favdoctor.Doctor.FirstName"
+            Subtitle="@favdoctor.Doctor.LastName"
+            Description="@favdoctor.Doctor.Specialization"
+            Badge="@favdoctor.DoctorId.ToString()"
+            TextButton="View Details"/>
+            //Onclick
+    }
+</div>
