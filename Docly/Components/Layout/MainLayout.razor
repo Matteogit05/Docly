@@ -1,23 +1,50 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        <!-- BARRA SUPERIORE -->
+        <div class="top-row px-4 shadow-sm bg-light d-flex justify-content-between align-items-center">
+            <div class="fw-bold text-primary">Docly App</div>
+            
+            <AuthorizeView>
+                <Authorized>
+                    <div class="d-flex align-items-center">
+                        <span class="me-3">
+                            <strong>@context.User.Identity?.Name</strong> 
+                            <span class="badge bg-secondary ms-1">@GetRole(context)</span>
+                        </span>
+                        
+                        <!-- FORM DI LOGOUT -->
+                        <form action="/api/auth/logout" method="post" class="m-0">
+                            <AntiforgeryToken />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Esci</button>
+                        </form>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div>
+                        <a href="/" class="btn btn-sm btn-outline-primary">Accedi</a>
+                        <a href="/register" class="btn btn-sm btn-primary ms-2">Registrati</a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
 
-        <article class="content px-4">
+        <!-- CONTENUTO DELLE PAGINE -->
+        <article class="content px-4 py-4">
             @Body
         </article>
     </main>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    // Piccolo metodo helper per mostrare il ruolo nell'interfaccia
+    private string GetRole(AuthenticationState context)
+    {
+        if (context.User.IsInRole("Admin")) return "Amministratore";
+        if (context.User.IsInRole("Doctor")) return "Medico";
+        if (context.User.IsInRole("Patient")) return "Paziente";
+        return "Utente";
+    }
+}

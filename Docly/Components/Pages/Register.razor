@@ -1,0 +1,196 @@
+@page "/register"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Docly.Data
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Registrazione - Docly</PageTitle>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Crea un Account</h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+
+                    <EditForm Model="@model" OnValidSubmit="EseguiRegistrazione">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-primary">Voglio registrarmi come:</label>
+                            <InputSelect @bind-Value="model.Ruolo" class="form-select border-primary">
+                                <option value="Patient">Paziente</option>
+                                <option value="Doctor">Medico</option>
+                            </InputSelect>
+                        </div>
+
+                        <hr />
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nome</label>
+                                <InputText class="form-control" @bind-Value="model.Nome" />
+                                <ValidationMessage For="@(() => model.Nome)" class="text-danger" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cognome</label>
+                                <InputText class="form-control" @bind-Value="model.Cognome" />
+                                <ValidationMessage For="@(() => model.Cognome)" class="text-danger" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText type="email" class="form-control" @bind-Value="model.Email" />
+                            <ValidationMessage For="@(() => model.Email)" class="text-danger" />
+                        </div>
+
+                        @if (model.Ruolo == "Patient")
+                        {
+                            <div class="bg-light p-3 rounded border mb-3">
+                                <h5>Dati Paziente</h5>
+                                <div class="mb-2">
+                                    <label class="form-label">Codice Fiscale</label>
+                                    <InputText class="form-control text-uppercase" @bind-Value="model.TaxId" />
+                                    <ValidationMessage For="@(() => model.TaxId)" class="text-danger" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Data di Nascita</label>
+                                    <InputDate class="form-control" @bind-Value="model.DateOfBirth" />
+                                </div>
+                            </div>
+                        }
+                        else if (model.Ruolo == "Doctor")
+                        {
+                            <div class="bg-light p-3 rounded border mb-3">
+                                <h5>Dati Medico</h5>
+                                <div class="mb-2">
+                                    <label class="form-label">Specializzazione</label>
+                                    <InputText class="form-control" @bind-Value="model.Specialization" placeholder="es. Cardiologo, Ortopedico..." />
+                                    <ValidationMessage For="@(() => model.Specialization)" class="text-danger" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Biografia</label>
+                                    <InputTextArea class="form-control" @bind-Value="model.Bio" placeholder="Breve descrizione della tua esperienza..." rows="3" />
+                                    <ValidationMessage For="@(() => model.Bio)" class="text-danger" />
+                                </div>
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <InputText type="password" class="form-control" @bind-Value="model.Password" />
+                            <ValidationMessage For="@(() => model.Password)" class="text-danger" />
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">Registrati</button>
+                    </EditForm>
+                </div>
+                <div class="card-footer text-center">
+                    <a href="/">Torna al Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterViewModel model = new() { DateOfBirth = new DateTime(1990, 1, 1) };
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Se sei già loggato, non puoi registrarti, ti rimando alla home
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task EseguiRegistrazione()
+    {
+        errorMessage = null;
+
+        // 1. Creazione dell'utente Identity
+        var user = new ApplicationUser { UserName = model.Email, Email = model.Email, EmailConfirmed = true };
+        var result = await UserManager.CreateAsync(user, model.Password);
+
+        if (!result.Succeeded)
+        {
+            errorMessage = string.Join(" | ", result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        // 2. Assegnazione del Ruolo
+        await UserManager.AddToRoleAsync(user, model.Ruolo);
+
+        // 3. Creazione del record nella tabella specifica (Patient o Doctor)
+        if (model.Ruolo == "Patient")
+        {
+            DbContext.Patients.Add(new Patient
+            {
+                IdentityUserId = user.Id, // Il collegamento vitale!
+                FirstName = model.Nome,
+                LastName = model.Cognome,
+                TaxId = model.TaxId.ToUpper(),
+                DateOfBirth = model.DateOfBirth
+            });
+        }
+        else if (model.Ruolo == "Doctor")
+        {
+            DbContext.Doctors.Add(new Doctor
+            {
+                IdentityUserId = user.Id, // Il collegamento vitale!
+                FirstName = model.Nome,
+                LastName = model.Cognome,
+                Specialization = model.Specialization,
+                Bio = model.Bio, // Inserimento della Bio nel database!
+                IsActive = true
+            });
+        }
+
+        await DbContext.SaveChangesAsync();
+
+        // 4. Se tutto è andato bene, rimandiamo al login con successo
+        Navigation.NavigateTo("/?registered=true");
+    }
+
+    public class RegisterViewModel
+    {
+        public string Ruolo { get; set; } = "Patient";
+
+        [Required(ErrorMessage = "Il nome è obbligatorio.")]
+        public string Nome { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Il cognome è obbligatorio.")]
+        public string Cognome { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email obbligatoria.")]
+        [EmailAddress(ErrorMessage = "Email non valida.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password obbligatoria.")]
+        [MinLength(6, ErrorMessage = "Minimo 6 caratteri.")]
+        public string Password { get; set; } = string.Empty;
+
+        // Campi condizionali Paziente
+        public string TaxId { get; set; } = string.Empty;
+        public DateTime DateOfBirth { get; set; }
+        
+        // Campi condizionali Medico
+        public string Specialization { get; set; } = string.Empty;
+        public string Bio { get; set; } = string.Empty;
+    }
+}

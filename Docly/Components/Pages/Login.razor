@@ -57,9 +57,7 @@
 
         if (user.Identity?.IsAuthenticated == true)
         {
-            if (user.IsInRole("Admin")) Navigation.NavigateTo("/admin-dashboard");
-            else if (user.IsInRole("Doctor")) Navigation.NavigateTo("/doctor-dashboard");
-            else Navigation.NavigateTo("/patient-dashboard");
+            Navigation.NavigateTo("/home");
         }
     }
 }

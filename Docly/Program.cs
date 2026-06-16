@@ -23,6 +23,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/";
+    options.AccessDeniedPath = "/";
+});
+
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
@@ -60,17 +66,17 @@ app.MapPost("/api/auth/login", async (
     
     if (result.Succeeded)
     {
-        var user = await userManager.FindByEmailAsync(email);
-        var roles = await userManager.GetRolesAsync(user!);
-
-        // Indirizziamo l'utente in base al ruolo
-        if (roles.Contains("Admin")) return Results.Redirect("/admin-dashboard");
-        if (roles.Contains("Doctor")) return Results.Redirect("/doctor-dashboard");
-        return Results.Redirect("/patient-dashboard");
+        // Se il login ha successo, andiamo sempre alla Home!
+        return Results.Redirect("/");
     }
 
-    // In caso di errore, torniamo al login con un parametro di errore
-    return Results.Redirect("/?error=true");
+    return Results.Redirect("/login?error=true");
+});
+
+app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.Redirect("/");
 });
 
 app.MapStaticAssets();

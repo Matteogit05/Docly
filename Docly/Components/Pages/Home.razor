@@ -1,7 +1,43 @@
-﻿@page "/admin-dashboard"
+﻿@page "/home"
+@using Microsoft.AspNetCore.Components.Authorization
+<!-- attribute [Authorize]-->
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard - Docly</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container-fluid mt-4">
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="text-danger"><i class="bi bi-shield-lock"></i> Pannello Amministratore</h2>
+                    <p>Benvenuto nell'area di gestione. Da qui potrai gestire utenti, medici e sistema.</p>
+                </div>
+            </div>
+            <!-- Qui andranno le statistiche e le tabelle admin -->
+        </Authorized>
+    </AuthorizeView>
 
-Welcome to your new app.
+    <AuthorizeView Roles="Doctor">
+        <Authorized>
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="text-success"><i class="bi bi-heart-pulse"></i> Area Medico</h2>
+                    <p>Qui puoi visualizzare i tuoi appuntamenti, le disponibilità e i pazienti.</p>
+                </div>
+            </div>
+            <!-- Qui andrà il calendario appuntamenti del medico -->
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="Patient">
+        <Authorized>
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="text-primary"><i class="bi bi-person-badge"></i> Area Paziente</h2>
+                    <p>Prenota una nuova visita, consulta le tue ricette o chatta con i tuoi medici preferiti.</p>
+                </div>
+            </div>
+            <!-- Qui andrà il pulsante per prenotare e la lista visite -->
+        </Authorized>
+    </AuthorizeView>
+</div>
