@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Docly.Components;
 using Docly.Data;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,24 +14,64 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=docly.db"));
 
+// 1. CONFIGURAZIONE IDENTITY E RUOLI
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
+
+builder.Services.AddCascadingAuthenticationState();
+
 var app = builder.Build();
 
+// 2. MODIFICA DEL SEEDER PER PASSARE IL SERVICE PROVIDER
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await DbSeeder.SeedAsync(db);
+    // Passiamo l'intero ServiceProvider al Seeder per potergli far usare RoleManager e UserManager
+    await DbSeeder.SeedAsync(scope.ServiceProvider);
 }
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(); // Importante per CSS/JS
 app.UseAntiforgery();
+
+// 3. MIDDLEWARE DI AUTENTICAZIONE E AUTORIZZAZIONE
+app.UseAuthentication();
+app.UseAuthorization();
+
+// 4. ENDPOINT INVISIBILE PER IL LOGIN (Aggira il limite di Blazor Server sui cookie)
+app.MapPost("/api/auth/login", async (
+    HttpContext context, 
+    SignInManager<ApplicationUser> signInManager, 
+    UserManager<ApplicationUser> userManager,
+    [FromForm] string email, 
+    [FromForm] string password) =>
+{
+    var result = await signInManager.PasswordSignInAsync(email, password, isPersistent: true, lockoutOnFailure: false);
+    
+    if (result.Succeeded)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        var roles = await userManager.GetRolesAsync(user!);
+
+        // Indirizziamo l'utente in base al ruolo
+        if (roles.Contains("Admin")) return Results.Redirect("/admin-dashboard");
+        if (roles.Contains("Doctor")) return Results.Redirect("/doctor-dashboard");
+        return Results.Redirect("/patient-dashboard");
+    }
+
+    // In caso di errore, torniamo al login con un parametro di errore
+    return Results.Redirect("/?error=true");
+});
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

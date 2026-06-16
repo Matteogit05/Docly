@@ -1,0 +1,65 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Login - Docly</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-header text-center bg-primary text-white">
+                    <h3 class="mb-0">Benvenuto su Docly</h3>
+                </div>
+                <div class="card-body p-4">
+                    
+                    @if (HasError)
+                    {
+                        <div class="alert alert-danger">Credenziali non valide. Riprova.</div>
+                    }
+
+                    <form action="/api/auth/login" method="post">
+                        <AntiforgeryToken />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" required />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" class="form-control" required />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Accedi</button>
+                    </form>
+                </div>
+                <div class="card-footer text-center">
+                    <p class="mb-0">Nuovo utente? <a href="/register">Registrati qui</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorParam { get; set; }
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorParam);
+
+    // Se l'utente è già loggato e va su "/", lo mandiamo via
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            if (user.IsInRole("Admin")) Navigation.NavigateTo("/admin-dashboard");
+            else if (user.IsInRole("Doctor")) Navigation.NavigateTo("/doctor-dashboard");
+            else Navigation.NavigateTo("/patient-dashboard");
+        }
+    }
+}

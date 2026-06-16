@@ -1,16 +1,64 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 
 public static class DbSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext db)
+    public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
+        var db = serviceProvider.GetRequiredService<ApplicationDbContext>();
+        var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+        await db.Database.EnsureCreatedAsync(); // Assicurati che il db esista
+        await SeedRolesAndAdminAsync(roleManager, userManager, configuration);
+
         await SeedApplicationUsersAsync(db);
         await SeedDoctorsAsync(db);
         await SeedPatientsAsync(db);
         await SeedDoctorAvailabilitiesAsync(db);
     }
 
+    private static async Task SeedRolesAndAdminAsync(RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager, IConfiguration configuration)
+    {
+        // 1. Creiamo i ruoli se non esistono
+        string[] roleNames = { "Admin", "Doctor", "Patient" };
+        foreach (var roleName in roleNames)
+        {
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new IdentityRole(roleName));
+            }
+        }
+
+        // 2. Creiamo l'utente Admin leggendo da appsettings.json
+        // Se l'email non c'è, usa il default. Se la password non c'è, è meglio lanciare un'eccezione.
+        string adminEmail = configuration["AdminSettings:Email"] ?? "admin@docly.it";
+        string adminPassword = configuration["AdminSettings:Password"];
+
+        if (string.IsNullOrEmpty(adminPassword))
+        {
+            throw new Exception("Attenzione: La password per l'Admin non è stata configurata in appsettings.json!");
+        }
+
+        if (await userManager.FindByEmailAsync(adminEmail) == null)
+        {
+            var adminUser = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true
+            };
+
+            // INSERISCI LA PASSWORD LETTA DALLA CONFIGURAZIONE
+            var result = await userManager.CreateAsync(adminUser, adminPassword); 
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+            }
+        }
+    }
     private static async Task SeedApplicationUsersAsync(ApplicationDbContext db)
     {
         var passwordHasher = new PasswordHasher<ApplicationUser>();

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) {}
 
@@ -17,12 +18,14 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        
+        /*
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("AspNetUsers");
             entity.HasKey(user => user.Id);
         });
+        */
 
         modelBuilder.Entity<Patient>(entity =>
         {
