@@ -1,10 +1,10 @@
-<article class="product-card">
+<article class="product-card h-100 d-flex flex-column">
     @if (!string.IsNullOrWhiteSpace(Badge))
     {
         <span class="product-card__badge">@Badge</span>
     }
 
-    <div class="product-card__content">
+    <div class="product-card__content mb-3">
         <h3 class="product-card__title">@Title</h3>
 
         @if (!string.IsNullOrWhiteSpace(Subtitle))
@@ -18,23 +18,20 @@
         }
     </div>
 
-    <button type="button" class="product-card__button" @onclick="OnClick">
-        @TextButton
-    </button>
+    <!-- Sezione inferiore con bottone Prenota e Stella Preferito -->
+    <div class="mt-auto d-flex justify-content-end align-items-center">
+        <button type="button" class="product-card__button m-0" @onclick="OnClick">
+            @TextButton
+        </button>
+    </div>
 </article>
 
 @code
 {
-    [Parameter]
-    public string? Title { get; set; } = string.Empty;
-    [Parameter]
-    public string? Subtitle { get; set; } = string.Empty;
-    [Parameter]
-    public string? Description { get; set; } = string.Empty;
-    [Parameter]
-    public string? Badge { get; set; } = string.Empty;
-    [Parameter]
-    public string? TextButton { get; set; } = "Apri";
-    [Parameter]
-    public EventCallback OnClick { get; set; }
+    [Parameter] public string? Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; } = string.Empty;
+    [Parameter] public string? Badge { get; set; } = string.Empty;
+    [Parameter] public string? TextButton { get; set; } = "Apri";
+    [Parameter] public EventCallback OnClick { get; set; }
 }

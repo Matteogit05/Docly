@@ -1,6 +1,13 @@
 ﻿@page "/home"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.Authorization
-<!-- attribute [Authorize]-->
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Docly.Data
+@using Docly.Data.Shared
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
 
 <PageTitle>Dashboard - Docly</PageTitle>
 
@@ -13,7 +20,6 @@
                     <p>Benvenuto nell'area di gestione. Da qui potrai gestire utenti, medici e sistema.</p>
                 </div>
             </div>
-            <!-- Qui andranno le statistiche e le tabelle admin -->
         </Authorized>
     </AuthorizeView>
 
@@ -25,19 +31,131 @@
                     <p>Qui puoi visualizzare i tuoi appuntamenti, le disponibilità e i pazienti.</p>
                 </div>
             </div>
-            <!-- Qui andrà il calendario appuntamenti del medico -->
         </Authorized>
     </AuthorizeView>
 
     <AuthorizeView Roles="Patient">
         <Authorized>
-            <div class="row">
+            <div class="row mb-3">
                 <div class="col-12">
                     <h2 class="text-primary"><i class="bi bi-person-badge"></i> Area Paziente</h2>
-                    <p>Prenota una nuova visita, consulta le tue ricette o chatta con i tuoi medici preferiti.</p>
+                    <p>Cerca il tuo specialista e prenota una visita.</p>
                 </div>
             </div>
-            <!-- Qui andrà il pulsante per prenotare e la lista visite -->
+            
+            <!-- Barra di Ricerca con Form per il tasto INVIO -->
+            <div class="row mb-4">
+                <div class="col-md-8 col-lg-6">
+                    <form @onsubmit="SearchDoctors">
+                        <div class="input-group shadow-sm">
+                            <input type="text" class="form-control" placeholder="Cerca medico o specializzazione..." @bind="searchTerm" />
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Cerca
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Griglia dei Medici -->
+            <div class="row g-4">
+                @if (searchResults == null)
+                {
+                    <!-- L'utente non ha ancora cercato nulla. Mostriamo niente (o volendo potresti mettere un'immagine placeholder qui) -->
+                }
+                else if (!searchResults.Any())
+                {
+                    <div class="col-12">
+                        <div class="alert alert-warning shadow-sm"><i class="bi bi-info-circle"></i> Nessun medico trovato per la ricerca "@searchTerm".</div>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var doctor in searchResults)
+                    {
+                        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                            <ProductCard 
+                                Title="@($"Dr. {doctor.FirstName} {doctor.LastName}")"
+                                Subtitle="@doctor.Specialization"
+                                Description="@doctor.Bio"
+                                TextButton="Prenota"
+                                OnClick="() => PrenotaVisita(doctor.Id)" />
+                        </div>
+                    }
+                }
+            </div>
         </Authorized>
     </AuthorizeView>
 </div>
+
+@code {
+    private string searchTerm = "";
+    
+    // Inizializzato a null: così all'avvio la pagina non mostra alcun medico
+    private List<Doctor>? searchResults = null; 
+    
+    private int? currentPatientId;
+    private HashSet<int> favoriteDoctorIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Identifica l'utente loggato
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true && user.IsInRole("Patient"))
+        {
+            var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (identityUserId != null)
+            {
+                // 2. Trova il Paziente collegato per prenderne l'ID
+                var patient = await Db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
+                
+                if (patient != null)
+                {
+                    currentPatientId = patient.Id;
+                    
+                    // 3. Carica i preferiti attuali per colorare le stelline
+                    var favorites = await Db.FavoriteDoctors
+                        .AsNoTracking()
+                        .Where(f => f.PatientId == currentPatientId)
+                        .Select(f => f.DoctorId)
+                        .ToListAsync();
+                    
+                    favoriteDoctorIds = favorites.ToHashSet();
+                }
+            }
+        }
+    }
+
+    private async Task SearchDoctors()
+    {
+        // Se la ricerca è vuota e si preme invio, decidiamo di mostrare tutti i medici disponibili
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            searchResults = await Db.Doctors
+                .AsNoTracking()
+                .Where(d => d.IsActive)
+                .ToListAsync();
+        }
+        else
+        {
+            // Filtro sul DB (ignora il case di default in Entity Framework SQLite con query standard)
+            var term = searchTerm.ToLower();
+            searchResults = await Db.Doctors
+                .AsNoTracking()
+                .Where(d => d.IsActive && 
+                       (d.FirstName.ToLower().Contains(term) || 
+                        d.LastName.ToLower().Contains(term) || 
+                        d.Specialization.ToLower().Contains(term)))
+                .ToListAsync();
+        }
+    }
+
+    private void PrenotaVisita(int doctorId)
+    {
+        // Qui andrà il collegamento alla futura pagina di prenotazione
+        // NavManager.NavigateTo($"/prenota/{doctorId}");
+    }
+}
