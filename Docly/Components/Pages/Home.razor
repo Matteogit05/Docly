@@ -42,7 +42,45 @@
                     <p>Cerca il tuo specialista e prenota una visita.</p>
                 </div>
             </div>
+
+            <!-- SEZIONE: I MIEI DOTTORI (PREFERITI) -->
+            <div class="row mb-2">
+                <div class="col-12">
+                    <h4 class="text-secondary"><i class="bi bi-star-fill text-warning"></i> I miei Dottori</h4>
+                </div>
+            </div>
             
+            <div class="row g-4 mb-5">
+                @if (favoriteDoctors == null || !favoriteDoctors.Any())
+                {
+                    <div class="col-12">
+                        <p class="text-muted fst-italic">Non hai nessun medico preferito.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var doctor in favoriteDoctors)
+                    {
+                        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                            <ProductCard 
+                                Title="@($"Dr. {doctor.FirstName} {doctor.LastName}")"
+                                Subtitle="@doctor.Specialization"
+                                Description="@doctor.Bio"
+                                TextButton="Prenota"
+                                Badge="Preferito"
+                                OnClick="() => PrenotaVisita(doctor.Id)" />
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- SEZIONE: RICERCA GLOBALE -->
+            <div class="row mb-2">
+                <div class="col-12">
+                    <h4 class="text-secondary"><i class="bi bi-search"></i> Trova uno Specialista</h4>
+                </div>
+            </div>
+
             <!-- Barra di Ricerca con Form per il tasto INVIO -->
             <div class="row mb-4">
                 <div class="col-md-8 col-lg-6">
@@ -50,18 +88,18 @@
                         <div class="input-group shadow-sm">
                             <input type="text" class="form-control" placeholder="Cerca medico o specializzazione..." @bind="searchTerm" />
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-search"></i> Cerca
+                                Cercare
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Griglia dei Medici -->
-            <div class="row g-4">
+            <!-- Griglia dei Risultati di Ricerca -->
+            <div class="row g-4 mb-4">
                 @if (searchResults == null)
                 {
-                    <!-- L'utente non ha ancora cercato nulla. Mostriamo niente (o volendo potresti mettere un'immagine placeholder qui) -->
+                    <!-- Nessuna ricerca ancora effettuata -->
                 }
                 else if (!searchResults.Any())
                 {
@@ -91,11 +129,13 @@
 @code {
     private string searchTerm = "";
     
-    // Inizializzato a null: così all'avvio la pagina non mostra alcun medico
+    // Lista per la ricerca globale
     private List<Doctor>? searchResults = null; 
     
+    // Lista per i medici preferiti dell'utente
+    private List<Doctor> favoriteDoctors = new();
+    
     private int? currentPatientId;
-    private HashSet<int> favoriteDoctorIds = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,14 +156,13 @@
                 {
                     currentPatientId = patient.Id;
                     
-                    // 3. Carica i preferiti attuali per colorare le stelline
-                    var favorites = await Db.FavoriteDoctors
+                    // 3. Carica INTERAMENTE i medici preferiti (usando Include per prendere i dati di Doctors)
+                    favoriteDoctors = await Db.FavoriteDoctors
                         .AsNoTracking()
-                        .Where(f => f.PatientId == currentPatientId)
-                        .Select(f => f.DoctorId)
+                        .Include(f => f.Doctor)
+                        .Where(f => f.PatientId == currentPatientId && f.Doctor.IsActive)
+                        .Select(f => f.Doctor)
                         .ToListAsync();
-                    
-                    favoriteDoctorIds = favorites.ToHashSet();
                 }
             }
         }
@@ -131,9 +170,9 @@
 
     private async Task SearchDoctors()
     {
-        // Se la ricerca è vuota e si preme invio, decidiamo di mostrare tutti i medici disponibili
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
+            // Se la ricerca è vuota, carichiamo tutti i medici
             searchResults = await Db.Doctors
                 .AsNoTracking()
                 .Where(d => d.IsActive)
@@ -141,21 +180,20 @@
         }
         else
         {
-            // Filtro sul DB (ignora il case di default in Entity Framework SQLite con query standard)
-            var term = searchTerm.ToLower();
+            // Usiamo EF.Functions.Like per una ricerca non case-sensitive affidabile in SQLite
+            var term = $"%{searchTerm}%";
             searchResults = await Db.Doctors
                 .AsNoTracking()
                 .Where(d => d.IsActive && 
-                       (d.FirstName.ToLower().Contains(term) || 
-                        d.LastName.ToLower().Contains(term) || 
-                        d.Specialization.ToLower().Contains(term)))
+                       (EF.Functions.Like(d.FirstName, term) || 
+                        EF.Functions.Like(d.LastName, term) || 
+                        EF.Functions.Like(d.Specialization, term)))
                 .ToListAsync();
         }
     }
 
     private void PrenotaVisita(int doctorId)
     {
-        // Qui andrà il collegamento alla futura pagina di prenotazione
-        // NavManager.NavigateTo($"/prenota/{doctorId}");
+        NavManager.NavigateTo($"/doctor/{doctorId}");
     }
 }
