@@ -9,7 +9,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Doctor> Doctors { get; set; }
     public DbSet<Patient> Patients { get; set; }
     public DbSet<FavoriteDoctor> FavoriteDoctors { get; set; }
-    public DbSet<DoctorAvailability> DoctorAvailabilities { get; set; }
+    public DbSet<DoctorSchedule> DoctorSchedules { get; set; }
+    public DbSet<DoctorAbsence> DoctorAbsences { get; set; }
     public DbSet<Appointment> Appointments { get; set; }
     public DbSet<ChatSession> ChatSessions { get; set; }
     public DbSet<Message> Messages { get; set; }
@@ -79,21 +80,41 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<DoctorAvailability>(entity =>
+        modelBuilder.Entity<DoctorSchedule>(entity =>
         {
-            entity.ToTable("DoctorAvailabilities", tableBuilder =>
+            entity.ToTable("DoctorSchedules", tableBuilder =>
             {
-                tableBuilder.HasCheckConstraint("CK_DoctorAvailabilities_TimeRange", "EndTime > StartTime");
+                tableBuilder.HasCheckConstraint("CK_DoctorSchedules_TimeRange", "EndTime > StartTime");
             });
-            entity.HasKey(availability => availability.Id);
+            entity.HasKey(schedule => schedule.Id);
 
-            entity.Property(availability => availability.StartTime).IsRequired();
-            entity.Property(availability => availability.EndTime).IsRequired();
+            entity.Property(schedule => schedule.StartTime).IsRequired();
+            entity.Property(schedule => schedule.EndTime).IsRequired();
+            entity.Property(schedule => schedule.SlotDurationMinutes).IsRequired().HasDefaultValue(15);
 
-            entity.HasOne(availability => availability.Doctor)
-                .WithMany(doctor => doctor.DoctorAvailabilities)
-                .HasForeignKey(availability => availability.DoctorId)
-                .OnDelete(DeleteBehavior.Restrict); // Availability rows are historical scheduling data.
+            entity.HasOne(schedule => schedule.Doctor)
+                .WithMany(doctor => doctor.DoctorSchedules) // Assicurati di aver aggiornato la classe Doctor
+                .HasForeignKey(schedule => schedule.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade); // Se elimino il medico, elimino i suoi orari
+        });
+
+        modelBuilder.Entity<DoctorAbsence>(entity =>
+        {
+            entity.ToTable("DoctorAbsences", tableBuilder =>
+            {
+                // La data di fine assenza deve essere maggiore o uguale a quella di inizio
+                tableBuilder.HasCheckConstraint("CK_DoctorAbsences_Dates", "EndDate >= StartDate");
+            });
+            entity.HasKey(absence => absence.Id);
+
+            entity.Property(absence => absence.StartDate).IsRequired();
+            entity.Property(absence => absence.EndDate).IsRequired();
+            entity.Property(absence => absence.Reason).HasMaxLength(200);
+
+            entity.HasOne(absence => absence.Doctor)
+                .WithMany(doctor => doctor.DoctorAbsences)
+                .HasForeignKey(absence => absence.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade); // Se elimino il medico, elimino anche lo storico delle sue ferie
         });
 
         modelBuilder.Entity<Appointment>(entity =>

@@ -17,7 +17,8 @@ public static class DbSeeder
         await SeedApplicationUsersAsync(db);
         await SeedDoctorsAsync(db);
         await SeedPatientsAsync(db);
-        await SeedDoctorAvailabilitiesAsync(db);
+        await SeedDoctorSchedulesAsync(db);
+        await SeedDoctorAbsencesAsync(db);
     }
 
     private static async Task SeedRolesAndAdminAsync(RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager, IConfiguration configuration)
@@ -316,118 +317,62 @@ public static class DbSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedDoctorAvailabilitiesAsync(ApplicationDbContext db)
+    private static async Task SeedDoctorSchedulesAsync(ApplicationDbContext db)
     {
-        var seedAvailabilities = new[]
+        var seedSchedules = new List<DoctorSchedule>();
+        int scheduleId = 1;
+
+        // Creiamo un orario per il Dottor 1 (Marco Rinaldi): Lun-Ven, 09:00-13:00 e 14:00-18:00
+        for (int i = 1; i <= 5; i++) // 1=Lunedì, 5=Venerdì
         {
-            new DoctorAvailability
+            seedSchedules.Add(new DoctorSchedule
+            {
+                Id = scheduleId++,
+                DoctorId = 1,
+                DayOfWeek = (DayOfWeek)i,
+                StartTime = new TimeSpan(9, 0, 0),
+                EndTime = new TimeSpan(13, 0, 0),
+                SlotDurationMinutes = 15
+            });
+
+            seedSchedules.Add(new DoctorSchedule
+            {
+                Id = scheduleId++,
+                DoctorId = 1,
+                DayOfWeek = (DayOfWeek)i,
+                StartTime = new TimeSpan(14, 0, 0),
+                EndTime = new TimeSpan(18, 0, 0),
+                SlotDurationMinutes = 15
+            });
+        }
+
+        var existingSchedules = await db.DoctorSchedules.AnyAsync();
+        if (!existingSchedules)
+        {
+            db.DoctorSchedules.AddRange(seedSchedules);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task SeedDoctorAbsencesAsync(ApplicationDbContext db)
+    {
+        var seedAbsences = new[]
+        {
+            new DoctorAbsence
             {
                 Id = 1,
-                DoctorId = 1,
-                StartTime = new DateTime(2026, 7, 1, 9, 0, 0),
-                EndTime = new DateTime(2026, 7, 1, 11, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 2,
-                DoctorId = 1,
-                StartTime = new DateTime(2026, 7, 1, 14, 0, 0),
-                EndTime = new DateTime(2026, 7, 1, 16, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 3,
-                DoctorId = 2,
-                StartTime = new DateTime(2026, 7, 2, 9, 0, 0),
-                EndTime = new DateTime(2026, 7, 2, 12, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 4,
-                DoctorId = 2,
-                StartTime = new DateTime(2026, 7, 2, 15, 0, 0),
-                EndTime = new DateTime(2026, 7, 2, 18, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 5,
-                DoctorId = 3,
-                StartTime = new DateTime(2026, 7, 3, 10, 0, 0),
-                EndTime = new DateTime(2026, 7, 3, 13, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 6,
-                DoctorId = 3,
-                StartTime = new DateTime(2026, 7, 3, 16, 0, 0),
-                EndTime = new DateTime(2026, 7, 3, 18, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 7,
-                DoctorId = 4,
-                StartTime = new DateTime(2026, 7, 4, 9, 30, 0),
-                EndTime = new DateTime(2026, 7, 4, 12, 30, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 8,
-                DoctorId = 4,
-                StartTime = new DateTime(2026, 7, 4, 14, 30, 0),
-                EndTime = new DateTime(2026, 7, 4, 17, 0, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 9,
-                DoctorId = 5,
-                StartTime = new DateTime(2026, 7, 5, 8, 30, 0),
-                EndTime = new DateTime(2026, 7, 5, 11, 30, 0),
-                IsBooked = false
-            },
-            new DoctorAvailability
-            {
-                Id = 10,
-                DoctorId = 5,
-                StartTime = new DateTime(2026, 7, 5, 13, 30, 0),
-                EndTime = new DateTime(2026, 7, 5, 16, 30, 0),
-                IsBooked = false
+                DoctorId = 1, // Marco Rinaldi
+                StartDate = new DateTime(2026, 8, 10), // Assente dal 10 Agosto
+                EndDate = new DateTime(2026, 8, 20),   // Fino al 20 Agosto compreso
+                Reason = "Ferie estive"
             }
         };
 
-        var existingAvailabilityKeys = await db.DoctorAvailabilities
-            .Select(availability => new
-            {
-                availability.DoctorId,
-                availability.StartTime,
-                availability.EndTime,
-                availability.IsBooked
-            })
-            .ToListAsync();
-
-        foreach (var seedAvailability in seedAvailabilities)
+        var existingAbsences = await db.DoctorAbsences.AnyAsync();
+        if (!existingAbsences)
         {
-            var alreadyExists = existingAvailabilityKeys.Any(existingAvailability =>
-                existingAvailability.DoctorId == seedAvailability.DoctorId &&
-                existingAvailability.StartTime == seedAvailability.StartTime &&
-                existingAvailability.EndTime == seedAvailability.EndTime &&
-                existingAvailability.IsBooked == seedAvailability.IsBooked);
-
-            if (alreadyExists)
-            {
-                continue;
-            }
-
-            db.DoctorAvailabilities.Add(seedAvailability);
+            db.DoctorAbsences.AddRange(seedAbsences);
+            await db.SaveChangesAsync();
         }
-
-        await db.SaveChangesAsync();
     }
 }
