@@ -1,0 +1,214 @@
+@page "/agenda"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Docly.Data
+@using Docly.Data.Shared
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<PageTitle>Agenda - Docly</PageTitle>
+
+<div class="container-fluid mt-4">
+    <!-- Intestazione con Icona -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-primary"><i class="bi bi-calendar-week-fill me-2"></i> Agenda</h2>
+            <p>Qui trovi i tuoi appuntamenti.</p>
+        </div>
+    </div>
+
+    <!-- SEZIONE: Prossimo Appuntamento -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <h4 class="text-secondary">Prossimo appuntamento</h4>
+            <hr class="mt-1 mb-4" />
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+        </div>
+    }
+    else if (nextAppointment == null)
+    {
+        <div class="alert alert-info shadow-sm mb-5">
+            <i class="bi bi-info-circle me-2"></i> Non hai nessun appuntamento imminente in programma.
+        </div>
+    }
+    else
+    {
+        <div class="row mb-5">
+            <div class="col-12 col-lg-8 col-xl-6">
+                <!-- CARD GRANDE -->
+                <div class="card shadow border-0 rounded-4">
+                    <div class="card-body p-4 p-md-5">
+                        
+                        <!-- Intestazione Card: Nome Paziente o Medico -->
+                        <div class="border-bottom pb-3 mb-4">
+                            <h4 class="card-title mb-0 fw-bold text-dark d-flex align-items-center">
+                                @if (isDoctor)
+                                {
+                                    <div class="bg-light text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="bi bi-person-fill fs-3"></i>
+                                    </div>
+                                    <span>Paziente: @nextAppointment.Patient.FirstName @nextAppointment.Patient.LastName</span>
+                                }
+                                else
+                                {
+                                    <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="bi bi-person-badge fs-3"></i>
+                                    </div>
+                                    <span>Dr. @nextAppointment.Doctor.FirstName @nextAppointment.Doctor.LastName</span>
+                                }
+                            </h4>
+                        </div>
+                        
+                        <!-- Dettagli: Data e Ora -->
+                        <div class="row mb-4">
+                            <div class="col-sm-6 mb-3 mb-sm-0">
+                                <div class="d-flex align-items-center text-secondary">
+                                    <i class="bi bi-calendar-event fs-1 me-3 text-primary"></i>
+                                    <div>
+                                        <small class="d-block text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Data</small>
+                                        <span class="fs-5 text-dark">@nextAppointment.StartTime.ToString("dd MMMM yyyy")</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="d-flex align-items-center text-secondary">
+                                    <i class="bi bi-clock fs-1 me-3 text-primary"></i>
+                                    <div>
+                                        <small class="d-block text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Orario d'inizio</small>
+                                        <span class="fs-5 text-dark">@nextAppointment.StartTime.ToString("HH:mm")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pulsante Azione -->
+                        <div class="text-end mt-2">
+                            <button class="btn btn-primary px-4 py-2 fw-bold rounded-pill" @onclick="() => VediAppuntamento(nextAppointment.Id)">
+                                Vedi appuntamento <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- SEZIONE: I Tuoi Appuntamenti (Lista completa futura) -->
+    <div class="row mb-3 mt-4">
+        <div class="col-12">
+            <h4 class="text-secondary">Tutti gli appuntamenti</h4>
+            <hr class="mt-1 mb-3" />
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        @if (isLoading)
+        {
+            // Gestito dal loader in alto
+        }
+        else if (otherAppointments == null || !otherAppointments.Any())
+        {
+            <div class="col-12">
+                <p class="text-muted">Nessun altro appuntamento in programma.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var appointment in otherAppointments)
+            {
+                <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                    <ProductCard 
+                        Title="@(isDoctor ? $"Paziente: {appointment.Patient.FirstName} {appointment.Patient.LastName}" : $"Dr. {appointment.Doctor.FirstName} {appointment.Doctor.LastName}")"
+                        Subtitle="@appointment.StartTime.ToString("dd MMMM yyyy")"
+                        Description="@($"Orario: {appointment.StartTime.ToString("HH:mm")}")"
+                        TextButton="Apri"
+                        OnClick="() => VediAppuntamento(appointment.Id)" />
+                </div>
+            }
+        }
+    </div>
+
+</div>
+
+@code {
+    private Appointment? nextAppointment;
+    private List<Appointment> otherAppointments = new();
+    private bool isLoading = true;
+    private bool isDoctor = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (identityUserId != null)
+            {
+                isDoctor = user.IsInRole("Doctor");
+                var now = DateTime.Now;
+
+                // Prepara la query base includendo sia il Medico che il Paziente per estrarne i nomi
+                IQueryable<Appointment> query = Db.Appointments
+                    .Include(a => a.Doctor)
+                    .Include(a => a.Patient)
+                    .AsNoTracking();
+
+                // Filtra in base a chi sta guardando l'agenda
+                if (isDoctor)
+                {
+                    var doctor = await Db.Doctors.FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
+                    if (doctor != null)
+                    {
+                        query = query.Where(a => a.DoctorId == doctor.Id);
+                    }
+                }
+                else if (user.IsInRole("Patient"))
+                {
+                    var patient = await Db.Patients.FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
+                    if (patient != null)
+                    {
+                        query = query.Where(a => a.PatientId == patient.Id);
+                    }
+                }
+
+                // Trova TUTTI gli appuntamenti futuri (StartTime > di adesso)
+                var allUpcomingAppointments = await query
+                    .Where(a => a.StartTime > now && (a.Status == 0 || a.Status == 1))
+                    .OrderBy(a => a.StartTime)
+                    .ToListAsync();
+                    
+                if (allUpcomingAppointments.Any())
+                {
+                    // Il primo è il prossimo appuntamento
+                    nextAppointment = allUpcomingAppointments.First();
+                    
+                    // Gli altri saltano il primo
+                    otherAppointments = allUpcomingAppointments.Skip(1).ToList();
+                }
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private void VediAppuntamento(int appointmentId)
+    {
+        // Naviga verso la futura pagina di dettaglio dell'appuntamento
+        // NavManager.NavigateTo($"/appointment/{appointmentId}");
+    }
+}

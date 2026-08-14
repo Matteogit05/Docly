@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using System.ComponentModel.DataAnnotations;
+using System.Xml;
 
 public static class DbSeeder
 {
@@ -327,7 +329,6 @@ public static class DbSeeder
         {
             seedSchedules.Add(new DoctorSchedule
             {
-                Id = scheduleId++,
                 DoctorId = 1,
                 DayOfWeek = (DayOfWeek)i,
                 StartTime = new TimeSpan(9, 0, 0),
@@ -337,21 +338,58 @@ public static class DbSeeder
 
             seedSchedules.Add(new DoctorSchedule
             {
-                Id = scheduleId++,
                 DoctorId = 1,
                 DayOfWeek = (DayOfWeek)i,
                 StartTime = new TimeSpan(14, 0, 0),
                 EndTime = new TimeSpan(18, 0, 0),
                 SlotDurationMinutes = 15
             });
+
+            seedSchedules.Add(new DoctorSchedule
+            {
+                DoctorId = 2,
+                DayOfWeek = (DayOfWeek)i,
+                StartTime = new TimeSpan(8, 0, 0),
+                EndTime = new TimeSpan(12, 0, 0),
+                SlotDurationMinutes = 15
+            });
+
+            seedSchedules.Add(new DoctorSchedule
+            {
+                DoctorId = 2,
+                DayOfWeek = (DayOfWeek)i,
+                StartTime = new TimeSpan(14, 0, 0),
+                EndTime = new TimeSpan(16, 0, 0),
+                SlotDurationMinutes = 15
+            });
+
+            seedSchedules.Add(new DoctorSchedule
+            {
+               DoctorId = 6,
+               DayOfWeek = (DayOfWeek)i,
+               StartTime = new TimeSpan(10, 0, 0),
+               EndTime = new TimeSpan(14, 0, 0),
+               SlotDurationMinutes = 15
+            });
+
+            seedSchedules.Add(new DoctorSchedule
+            {
+               DoctorId = 6,
+               DayOfWeek = (DayOfWeek)i,
+               StartTime = new TimeSpan(16, 0, 0),
+               EndTime = new TimeSpan(19, 0, 0),
+               SlotDurationMinutes = 15 
+            });
         }
 
-        var existingSchedules = await db.DoctorSchedules.AnyAsync();
-        if (!existingSchedules)
+        if (await db.DoctorSchedules.AnyAsync())
         {
-            db.DoctorSchedules.AddRange(seedSchedules);
+            db.DoctorSchedules.RemoveRange(db.DoctorSchedules);
             await db.SaveChangesAsync();
         }
+
+        db.DoctorSchedules.AddRange(seedSchedules);
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedDoctorAbsencesAsync(ApplicationDbContext db)
@@ -360,19 +398,28 @@ public static class DbSeeder
         {
             new DoctorAbsence
             {
-                Id = 1,
                 DoctorId = 1, // Marco Rinaldi
                 StartDate = new DateTime(2026, 8, 10), // Assente dal 10 Agosto
                 EndDate = new DateTime(2026, 8, 20),   // Fino al 20 Agosto compreso
                 Reason = "Ferie estive"
+            },
+
+            new DoctorAbsence
+            {
+                DoctorId = 2,
+                StartDate = new DateTime(2026, 8, 30),
+                EndDate = new DateTime(2026, 9, 5),
+                Reason = "Ferie"
             }
         };
 
-        var existingAbsences = await db.DoctorAbsences.AnyAsync();
-        if (!existingAbsences)
+        if (await db.DoctorAbsences.AnyAsync())
         {
-            db.DoctorAbsences.AddRange(seedAbsences);
+            db.DoctorAbsences.RemoveRange(db.DoctorAbsences);
             await db.SaveChangesAsync();
         }
+
+        db.DoctorAbsences.AddRange(seedAbsences);
+        await db.SaveChangesAsync();
     }
 }
