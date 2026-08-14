@@ -1,30 +1,85 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Docly</a>
+        <a class="navbar-brand text-white fw-bold" href="/">
+            <i class="bi bi-heart-pulse-fill me-2 text-white"></i> Docly
+        </a>
     </div>
 </div>
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
+    <nav class="nav flex-column mt-2">
+        
+        <!-- VISIBILE A TUTTI -->
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link" href="home" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill me-3 text-white fs-5" aria-hidden="true"></i> 
+                <span class="text-white">Home</span>
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+        <!-- VISIBILE SOLO AI PAZIENTI -->
+        <AuthorizeView Roles="Patient">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="mie-visite">
+                        <i class="bi bi-calendar-check-fill me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">Agenda</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="chat">
+                        <i class="bi bi-chat-dots-fill me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">Messaggi</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="profilo">
+                        <i class="bi bi-person-circle me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">Me</span>
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
+        <!-- VISIBILE SOLO AI MEDICI -->
+        <AuthorizeView Roles="Doctor">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="agenda">
+                        <i class="bi bi-calendar-check-fill me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">La mia Agenda</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="chat">
+                        <i class="bi bi-chat-dots-fill me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">Messaggi</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="profilo">
+                        <i class="bi bi-person-circle me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">Me</span>
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+        
+        <!-- VISIBILE SOLO AGLI ADMIN -->
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="utenti">
+                        <i class="bi bi-people-fill me-3 text-white fs-5" aria-hidden="true"></i> 
+                        <span class="text-white">Gestione Utenti</span>
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
     </nav>
 </div>
-
