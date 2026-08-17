@@ -377,11 +377,10 @@ public static class DbSeeder
                DoctorId = 6,
                DayOfWeek = (DayOfWeek)i,
                StartTime = new TimeSpan(16, 0, 0),
-               EndTime = new TimeSpan(19, 0, 0),
+               EndTime = new TimeSpan(18, 0, 0),
                SlotDurationMinutes = 15 
             });
         }
-
         if (await db.DoctorSchedules.AnyAsync())
         {
             db.DoctorSchedules.RemoveRange(db.DoctorSchedules);

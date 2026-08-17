@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Docly.Data.Entities;
 
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
@@ -11,6 +12,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<FavoriteDoctor> FavoriteDoctors { get; set; }
     public DbSet<DoctorSchedule> DoctorSchedules { get; set; }
     public DbSet<DoctorAbsence> DoctorAbsences { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
     public DbSet<Appointment> Appointments { get; set; }
     public DbSet<ChatSession> ChatSessions { get; set; }
     public DbSet<Message> Messages { get; set; }
@@ -194,6 +196,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany(message => message.Attachments)
                 .HasForeignKey(attachment => attachment.MessageId)
                 .OnDelete(DeleteBehavior.Cascade); // Attachments are dependent data for the message.
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("Notifications");
+
+            entity.HasOne(n => n.ApplicationUser)
+                .WithMany()
+                .HasForeignKey(n => n.IdentityUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

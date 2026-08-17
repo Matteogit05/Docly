@@ -4,6 +4,7 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims
 @using Docly.Data
+@using Docly.Data.Entities
 @using Docly.Data.Shared
 @inject ApplicationDbContext Db
 @inject AuthenticationStateProvider AuthStateProvider
@@ -98,8 +99,16 @@
 
                             @if (appointment.Status == 0 || appointment.Status == 1) // Pending o Confirmed
                             {
-                                <button class="btn btn-outline-danger px-4 py-2 fw-bold d-flex align-items-center" @onclick="CancelAppointment">
-                                    <i class="bi bi-x-circle-fill me-2 fs-5"></i> Annulla Appuntamento
+                                <button class="btn btn-outline-danger px-4 py-2 fw-bold d-flex align-items-center" @onclick="CancelAppointment" disabled="@isCancelling">
+                                    @if(isCancelling)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <span>Annullamento...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-x-circle-fill me-2 fs-5"></i> <span>Annulla Appuntamento</span>
+                                    }
                                 </button>
                             }
                             else if (appointment.Status == 2)
@@ -126,6 +135,7 @@
     private Appointment? appointment;
     private bool isLoading = true;
     private bool isDoctor = false;
+    private bool isCancelling = false; // Aggiunto flag per l'interfaccia
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,7 +154,7 @@
                 var query = Db.Appointments
                     .Include(a => a.Doctor)
                     .Include(a => a.Patient)
-                    .AsQueryable(); // Lasciamo il tracking per poter modificare lo Status
+                    .AsQueryable();
 
                 // Sicurezza: un utente può vedere solo i suoi appuntamenti
                 if (isDoctor)
@@ -172,16 +182,46 @@
     private void OpenChat()
     {
         // Logica per creare/aprire la sessione di chat
-        // Esempio: NavManager.NavigateTo($"/chat/appointment/{AppointmentId}");
+        // NavManager.NavigateTo($"/chat/appointment/{AppointmentId}");
     }
 
     private async Task CancelAppointment()
     {
         if (appointment != null)
         {
-            // Imposta lo Status a 2 (Annullato)
+            isCancelling = true;
+            
+            // 1. Cambia lo stato in Annullato (2)
             appointment.Status = 2; 
+
+            // 2. Crea la notifica
+            var notification = new Notification
+            {
+                Title = "Appuntamento Annullato",
+                CreatedAt = DateTime.Now,
+                IsRead = false,
+                TargetUrl = $"/appointment/{appointment.Id}"
+            };
+
+            // Determiniamo chi sta annullando e formattiamo il messaggio per il destinatario
+            if (isDoctor)
+            {
+                // Il medico annulla, la notifica va al paziente
+                notification.IdentityUserId = appointment.Patient.IdentityUserId;
+                notification.Message = $"La tua visita del {appointment.StartTime.ToString("dd/MM/yyyy alle HH:mm")} con il Dr. {appointment.Doctor.LastName} è stata annullata.";
+            }
+            else
+            {
+                // Il paziente annulla, la notifica va al medico
+                notification.IdentityUserId = appointment.Doctor.IdentityUserId;
+                notification.Message = $"L'appuntamento del {appointment.StartTime.ToString("dd/MM/yyyy alle HH:mm")} con il paziente {appointment.Patient.FirstName} {appointment.Patient.LastName} è stato annullato.";
+            }
+
+            // 3. Salva nel DB
+            Db.Notifications.Add(notification);
             await Db.SaveChangesAsync();
+            
+            isCancelling = false;
         }
     }
 }
