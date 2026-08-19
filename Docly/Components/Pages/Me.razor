@@ -3,19 +3,17 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims
-@using Docly.Data
-@using Docly.Data.Entities
 @using Docly.Data.Shared
 @inject ApplicationDbContext Db
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavManager
 
-<PageTitle>Area Personale - Docly</PageTitle>
+<PageTitle>Il Mio Profilo - Docly</PageTitle>
 
 <div class="container mt-5">
     <div class="row mb-4">
         <div class="col-12">
-            <h2 class="text-primary fw-bold"><i class="bi bi-person-circle me-2"></i>Il mio profilo</h2>
+            <h2 class="text-primary fw-bold"><i class="bi bi-person-circle me-2"></i> Il Mio Profilo</h2>
             <p class="text-muted">Gestisci i tuoi dati personali e le tue preferenze.</p>
             <hr />
         </div>
@@ -39,60 +37,65 @@
                         <div class="col-12 col-md-10 col-lg-8">
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
                                 
-                                <!-- Banner Superiore Colorato -->
                                 <div class="bg-primary" style="height: 100px;"></div>
                                 
                                 <div class="card-body px-4 px-md-5 pb-5 position-relative">
                                     
-                                    <!-- Immagine Profilo Sovrapposta -->
                                     <div class="text-center" style="margin-top: -60px; margin-bottom: 30px;">
                                         <div class="bg-white rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm border border-4 border-white" style="width: 120px; height: 120px;">
                                             <i class="bi bi-person-fill text-primary" style="font-size: 5rem; line-height: 1;"></i>
                                         </div>
                                     </div>
 
-                                    <!-- Nome e Cognome -->
-                                    <div class="text-center mb-5">
-                                        <h2 class="fw-bold mb-1">@patient.FirstName @patient.LastName</h2>
-                                        <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-person-badge me-1"></i> Paziente</span>
-                                    </div>
+                                    @if (isEditing)
+                                    {
+                                        <h5 class="fw-bold mb-4 text-center">Modifica Dati Personali</h5>
+                                        <PazienteForm
+                                            CurrentPatient="patient"
+                                            OnSave="SalvaPaziente"
+                                            OnCancel="ChiudiModifica" />
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center mb-5">
+                                            <h2 class="fw-bold mb-1">@patient.FirstName @patient.LastName</h2>
+                                            <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-person-badge me-1"></i> Paziente</span>
+                                        </div>
 
-                                    <!-- Dettagli -->
-                                    <h5 class="fw-bold mb-3 border-bottom pb-2">Informazioni Personali</h5>
-                                    
-                                    <div class="row g-4 mb-4">
-                                        <div class="col-md-6">
-                                            <div class="d-flex align-items-center p-3 bg-light rounded-3">
-                                                <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3" style="width: 45px; height: 45px;">
-                                                    <i class="bi bi-calendar-date text-primary fs-5"></i>
+                                        <h5 class="fw-bold mb-3 border-bottom pb-2">Informazioni Personali</h5>
+                                        
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-6">
+                                                <div class="d-flex align-items-center p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-calendar-date text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Data di Nascita</small>
+                                                        <span class="fw-semibold text-dark fs-6">@patient.DateOfBirth.ToString("dd MMMM yyyy")</span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Data di Nascita</small>
-                                                    <span class="fw-semibold text-dark fs-6">@patient.DateOfBirth.ToString("dd MMMM yyyy")</span>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <div class="d-flex align-items-center p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-card-text text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Codice Fiscale</small>
+                                                        <span class="fw-semibold text-dark fs-6 text-uppercase">@patient.TaxId</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div class="col-md-6">
-                                            <div class="d-flex align-items-center p-3 bg-light rounded-3">
-                                                <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3" style="width: 45px; height: 45px;">
-                                                    <i class="bi bi-card-text text-primary fs-5"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Codice Fiscale</small>
-                                                    <span class="fw-semibold text-dark fs-6 text-uppercase">@patient.TaxId</span>
-                                                </div>
-                                            </div>
+                                        <div class="text-end mt-4 pt-3 border-top">
+                                            <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModifica">
+                                                <i class="bi bi-pencil-square me-2"></i> Modifica Profilo
+                                            </button>
                                         </div>
-                                    </div>
-
-                                    <!-- Pulsante Azione -->
-                                    <div class="text-end mt-4 pt-3 border-top">
-                                        <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModifica">
-                                            <i class="bi bi-pencil-square me-2"></i> Modifica Profilo
-                                        </button>
-                                    </div>
-
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -113,61 +116,65 @@
                         <div class="col-12 col-md-10 col-lg-8">
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
                                 
-                                <!-- Banner Superiore Colorato -->
                                 <div class="bg-primary" style="height: 100px;"></div>
                                 
                                 <div class="card-body px-4 px-md-5 pb-5 position-relative">
                                     
-                                    <!-- Immagine Profilo Sovrapposta -->
                                     <div class="text-center" style="margin-top: -60px; margin-bottom: 30px;">
                                         <div class="bg-white rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm border border-4 border-white" style="width: 120px; height: 120px;">
-                                            <!-- Icona personalizzata per il dottore -->
                                             <i class="bi bi-person-badge text-primary" style="font-size: 4.5rem; line-height: 1;"></i>
                                         </div>
                                     </div>
 
-                                    <!-- Nome e Cognome -->
-                                    <div class="text-center mb-5">
-                                        <h2 class="fw-bold mb-1">Dr. @doctor.FirstName @doctor.LastName</h2>
-                                        <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-heart-pulse me-1"></i> Medico Specialista</span>
-                                    </div>
+                                    @if (isEditing)
+                                    {
+                                        <h5 class="fw-bold mb-4 text-center">Modifica Informazioni Professionali</h5>
+                                        <DottoreForm
+                                            CurrentDoctor="doctor"
+                                            OnSave="SalvaDottore"
+                                            OnCancel="ChiudiModifica" />
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center mb-5">
+                                            <h2 class="fw-bold mb-1">Dr. @doctor.FirstName @doctor.LastName</h2>
+                                            <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-heart-pulse me-1"></i> Medico Specialista</span>
+                                        </div>
 
-                                    <!-- Dettagli -->
-                                    <h5 class="fw-bold mb-3 border-bottom pb-2">Informazioni Professionali</h5>
-                                    
-                                    <div class="row g-4 mb-4">
-                                        <div class="col-12">
-                                            <div class="d-flex align-items-center p-3 bg-light rounded-3">
-                                                <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3 flex-shrink-0" style="width: 45px; height: 45px;">
-                                                    <i class="bi bi-award text-primary fs-5"></i>
+                                        <h5 class="fw-bold mb-3 border-bottom pb-2">Informazioni Professionali</h5>
+                                        
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-12">
+                                                <div class="d-flex align-items-center p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3 flex-shrink-0" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-award text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Specializzazione</small>
+                                                        <span class="fw-semibold text-dark fs-6">@doctor.Specialization</span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Specializzazione</small>
-                                                    <span class="fw-semibold text-dark fs-6">@doctor.Specialization</span>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <div class="d-flex align-items-start p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3 flex-shrink-0" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-card-text text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Biografia</small>
+                                                        <span class="fw-semibold text-dark fs-6" style="line-height: 1.5;">@doctor.Bio</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div class="col-12">
-                                            <div class="d-flex align-items-start p-3 bg-light rounded-3">
-                                                <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3 flex-shrink-0" style="width: 45px; height: 45px;">
-                                                    <i class="bi bi-card-text text-primary fs-5"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Biografia</small>
-                                                    <span class="fw-semibold text-dark fs-6" style="line-height: 1.5;">@doctor.Bio</span>
-                                                </div>
-                                            </div>
+                                        <div class="text-end mt-4 pt-3 border-top">
+                                            <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModifica">
+                                                <i class="bi bi-pencil-square me-2"></i> Modifica Profilo
+                                            </button>
                                         </div>
-                                    </div>
-
-                                    <!-- Pulsante Azione -->
-                                    <div class="text-end mt-4 pt-3 border-top">
-                                        <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModifica">
-                                            <i class="bi bi-pencil-square me-2"></i> Modifica Profilo
-                                        </button>
-                                    </div>
-
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -186,6 +193,7 @@
     private Patient? patient;
     private Doctor? doctor;
     private bool isLoading = true;
+    private bool isEditing = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -198,17 +206,14 @@
             
             if (identityUserId != null)
             {
-                // Carica dinamicamente in base al ruolo dell'utente loggato
                 if (user.IsInRole("Patient"))
                 {
                     patient = await Db.Patients
-                        .AsNoTracking()
                         .FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
                 }
                 else if (user.IsInRole("Doctor"))
                 {
                     doctor = await Db.Doctors
-                        .AsNoTracking()
                         .FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
                 }
             }
@@ -219,6 +224,23 @@
 
     private void ApriModifica()
     {
-        // Placeholder
+        isEditing = true;
+    }
+
+    private void ChiudiModifica()
+    {
+        isEditing = false;
+    }
+
+    private async Task SalvaPaziente(Patient updatedPatient)
+    {
+        await Db.SaveChangesAsync();
+        isEditing = false;
+    }
+    
+    private async Task SalvaDottore(Doctor updatedDoctor)
+    {
+        await Db.SaveChangesAsync();
+        isEditing = false;
     }
 }
