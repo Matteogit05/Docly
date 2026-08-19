@@ -115,7 +115,7 @@
                     <div class="row justify-content-center">
                         <div class="col-12 col-md-10 col-lg-8">
                             
-                            <!-- Card Informazioni Professionali -->
+                            <!-- Card 1: Informazioni Professionali -->
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
                                 
                                 <div class="bg-primary" style="height: 100px;"></div>
@@ -180,8 +180,8 @@
                                 </div>
                             </div>
 
-                            <!-- Card Orari di Disponibilità -->
-                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+                            <!-- Card 2: Orari di Disponibilità -->
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
                                 <div class="card-body px-4 px-md-5 py-5">
                                     <h4 class="fw-bold mb-4 text-primary border-bottom pb-2">
                                         <i class="bi bi-clock-history me-2"></i> Orari di Disponibilità
@@ -245,6 +245,26 @@
                                 </div>
                             </div>
                             
+                            <!-- Card 3: Gestione Ferie e Assenze -->
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+                                <div class="card-body px-4 px-md-5 py-5">
+                                    <h4 class="fw-bold mb-4 text-danger border-bottom pb-2">
+                                        <i class="bi bi-calendar-x me-2"></i> Registra Nuova Assenza
+                                    </h4>
+                                    
+                                    <p class="text-muted mb-4">Usa questo modulo per registrare ferie, malattie o permessi. Durante questi periodi, i pazienti non potranno prenotare visite.</p>
+                                    
+                                    <!-- Inserimento in chiaro del form per le ferie -->
+                                    <FerieDottoreForm 
+                                        OnSave="SalvaFerie" />
+                                        
+                                </div>
+                                @if (ferieSuccess)
+                                {
+                                    <div class="alert alert-info shadow-sm mb-4">Assenza registrata con successo!</div>
+                                }
+                            </div>
+
                         </div>
                     </div>
                 }
@@ -265,6 +285,7 @@
     private bool isLoading = true;
     private bool isEditing = false;
     private bool isEditingAvailability = false;
+    private bool ferieSuccess = false;
 
     // Proprietà calcolata che sostituisce il blocco @{} nell'HTML
     private List<DoctorSchedule> RefSchedules => doctorSchedules?
@@ -345,7 +366,7 @@
         StateHasChanged();
     }
 
-private async Task SalvaDisponibilita(DisponibilitaDottoreForm.DisponibilitaViewModel newSchedules)
+    private async Task SalvaDisponibilita(DisponibilitaDottoreForm.DisponibilitaViewModel newSchedules)
     {
         if (doctor == null) return;
         
@@ -395,4 +416,36 @@ private async Task SalvaDisponibilita(DisponibilitaDottoreForm.DisponibilitaView
         isEditingAvailability = false;
         StateHasChanged();
     }
+
+    private async Task SalvaFerie(FerieDottoreForm.FerieViewModel assenzaInfo)
+    {
+        if (doctor == null) return;
+
+        // Creazione dell'entità per il DB
+        var nuovaAssenza = new DoctorAbsence
+        {
+            DoctorId = doctor.Id,
+            StartDate = assenzaInfo.StartDate,
+            EndDate = assenzaInfo.EndDate,
+            Reason = assenzaInfo.Reason
+        };
+
+        Db.DoctorAbsences.Add(nuovaAssenza);
+        await Db.SaveChangesAsync();
+
+        ferieSuccess = true;
+        
+        // Per ora mostriamo l'avvenuta scrittura tramite il reload della pagina (o chiudendo un flag in futuro)
+        // L'annullamento semplicemente non fa nulla o svuota il form (visto che è in chiaro)
+        StateHasChanged();
+    }
+
+    /*
+    private void ChiudiFerie()
+    {
+        // Se l'utente clicca annulla sul form ferie (che è in chiaro)
+        // Per ora possiamo ricaricare lo stato per "resettare" i dati iniziali
+        StateHasChanged();
+    }
+    */
 }

@@ -1,0 +1,88 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+
+@if (model != null)
+{
+    <EditForm Model="@model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        
+        <div class="row g-3 mb-3 bg-light p-3 rounded-3 border mx-0">
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Data di Inizio</label>
+                <InputDate class="form-control" @bind-Value="model.StartDate" />
+                <ValidationMessage For="@(() => model.StartDate)" class="text-danger small" />
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Data di Fine</label>
+                <InputDate class="form-control" @bind-Value="model.EndDate" />
+                <ValidationMessage For="@(() => model.EndDate)" class="text-danger small" />
+            </div>
+            
+            <div class="col-12 mt-3">
+                <label class="form-label fw-bold text-muted small text-uppercase">Motivazione (Opzionale)</label>
+                <InputTextArea class="form-control" @bind-Value="model.Reason" rows="2" placeholder="Es. Ferie estive, Convegno medico..." />
+                <ValidationMessage For="@(() => model.Reason)" class="text-danger small" />
+            </div>
+            
+        </div>
+
+        @if (!string.IsNullOrEmpty(customError))
+        {
+            <div class="alert alert-danger p-2 rounded small"><i class="bi bi-exclamation-triangle-fill me-2"></i> @customError</div>
+        }
+
+        <ValidationSummary class="alert alert-warning p-2 rounded small" />
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button type="submit" class="btn btn-primary px-4 fw-bold">Registra Assenza</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public EventCallback<FerieViewModel> OnSave { get; set; }
+    /*
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+    */
+
+    private FerieViewModel model = new();
+    private string? customError;
+
+    protected override void OnInitialized()
+    {
+        // Impostiamo valori di default sensati: da domani per una settimana
+        model.StartDate = DateTime.Today.AddDays(1);
+        model.EndDate = DateTime.Today.AddDays(8);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        customError = null;
+
+        // Validazione logica: la data di fine non può essere precedente a quella di inizio
+        if (model.EndDate < model.StartDate)
+        {
+            customError = "La data di fine assenza non può essere precedente alla data di inizio.";
+            return;
+        }
+
+        // Se tutto ok, passiamo i dati al genitore
+        await OnSave.InvokeAsync(model);
+    }
+
+    public class FerieViewModel
+    {
+        [Required(ErrorMessage = "La data di inizio è obbligatoria.")]
+        public DateTime StartDate { get; set; }
+
+        [Required(ErrorMessage = "La data di fine è obbligatoria.")]
+        public DateTime EndDate { get; set; }
+
+        [StringLength(500, ErrorMessage = "La motivazione non può superare i 500 caratteri.")]
+        public string? Reason { get; set; }
+    }
+}

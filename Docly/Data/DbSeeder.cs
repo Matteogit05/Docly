@@ -1,8 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
-using System.ComponentModel.DataAnnotations;
-using System.Xml;
 
 public static class DbSeeder
 {
@@ -19,8 +16,10 @@ public static class DbSeeder
         await SeedApplicationUsersAsync(db);
         await SeedDoctorsAsync(db);
         await SeedPatientsAsync(db);
+        /*
         await SeedDoctorSchedulesAsync(db);
         await SeedDoctorAbsencesAsync(db);
+        */
     }
 
     private static async Task SeedRolesAndAdminAsync(RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager, IConfiguration configuration)
@@ -318,7 +317,7 @@ public static class DbSeeder
 
         await db.SaveChangesAsync();
     }
-
+    /*
     private static async Task SeedDoctorSchedulesAsync(ApplicationDbContext db)
     {
         var seedSchedules = new List<DoctorSchedule>();
@@ -362,24 +361,6 @@ public static class DbSeeder
                 EndTime = new TimeSpan(16, 0, 0),
                 SlotDurationMinutes = 15
             });
-
-            seedSchedules.Add(new DoctorSchedule
-            {
-               DoctorId = 6,
-               DayOfWeek = (DayOfWeek)i,
-               StartTime = new TimeSpan(10, 0, 0),
-               EndTime = new TimeSpan(14, 0, 0),
-               SlotDurationMinutes = 15
-            });
-
-            seedSchedules.Add(new DoctorSchedule
-            {
-               DoctorId = 6,
-               DayOfWeek = (DayOfWeek)i,
-               StartTime = new TimeSpan(16, 0, 0),
-               EndTime = new TimeSpan(18, 0, 0),
-               SlotDurationMinutes = 15 
-            });
         }
         if (await db.DoctorSchedules.AnyAsync())
         {
@@ -421,4 +402,5 @@ public static class DbSeeder
         db.DoctorAbsences.AddRange(seedAbsences);
         await db.SaveChangesAsync();
     }
+    */
 }
