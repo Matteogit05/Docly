@@ -35,7 +35,7 @@
                 {
                     <div class="row justify-content-center">
                         <div class="col-12 col-md-10 col-lg-8">
-                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
                                 
                                 <div class="bg-primary" style="height: 100px;"></div>
                                 
@@ -114,7 +114,9 @@
                 {
                     <div class="row justify-content-center">
                         <div class="col-12 col-md-10 col-lg-8">
-                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                            
+                            <!-- Card Informazioni Professionali -->
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
                                 
                                 <div class="bg-primary" style="height: 100px;"></div>
                                 
@@ -177,6 +179,72 @@
                                     }
                                 </div>
                             </div>
+
+                            <!-- Card Orari di Disponibilità -->
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+                                <div class="card-body px-4 px-md-5 py-5">
+                                    <h4 class="fw-bold mb-4 text-primary border-bottom pb-2">
+                                        <i class="bi bi-clock-history me-2"></i> Orari di Disponibilità
+                                    </h4>
+                                    
+                                    @if(isEditingAvailability)
+                                    {
+                                        <DisponibilitaDottoreForm 
+                                            CurrentSchedules="doctorSchedules"
+                                            OnSave="SalvaDisponibilita"
+                                            OnCancel="ChiudiModificaDisponibilita" />
+                                    }
+                                    else
+                                    {
+                                        @if(doctorSchedules == null || !doctorSchedules.Any())
+                                        {
+                                            <div class="alert alert-info shadow-sm mb-4">
+                                                <i class="bi bi-info-circle-fill me-2"></i> Non hai ancora impostato i tuoi orari di lavoro.
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-6">
+                                                    <div class="p-3 bg-light rounded-3 border">
+                                                        <div class="text-muted fw-bold text-uppercase mb-2 small"><i class="bi bi-brightness-alt-high me-1"></i> Mattina</div>
+                                                        @if(RefSchedules.Count >= 1)
+                                                        {
+                                                            <div class="fs-5 text-dark fw-semibold">@RefSchedules[0].StartTime.ToString(@"hh\:mm") - @RefSchedules[0].EndTime.ToString(@"hh\:mm")</div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted fst-italic">Non impostato</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6">
+                                                    <div class="p-3 bg-light rounded-3 border">
+                                                        <div class="text-muted fw-bold text-uppercase mb-2 small"><i class="bi bi-brightness-high-fill me-1"></i> Pomeriggio</div>
+                                                        @if(RefSchedules.Count >= 2)
+                                                        {
+                                                            <div class="fs-5 text-dark fw-semibold">@RefSchedules[1].StartTime.ToString(@"hh\:mm") - @RefSchedules[1].EndTime.ToString(@"hh\:mm")</div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted fst-italic">Non impostato</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p class="text-muted small mb-4"><i class="bi bi-info-circle me-1"></i> I turni si applicano automaticamente dal Lunedì al Venerdì.</p>
+                                        }
+                                        
+                                        <div class="text-end pt-3 border-top">
+                                            <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModificaDisponibilita">
+                                                <i class="bi bi-calendar-range me-2"></i> Modifica Disponibilità
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            
                         </div>
                     </div>
                 }
@@ -192,8 +260,17 @@
 @code {
     private Patient? patient;
     private Doctor? doctor;
+    private List<DoctorSchedule> doctorSchedules = new();
+    
     private bool isLoading = true;
     private bool isEditing = false;
+    private bool isEditingAvailability = false;
+
+    // Proprietà calcolata che sostituisce il blocco @{} nell'HTML
+    private List<DoctorSchedule> RefSchedules => doctorSchedules?
+        .Where(s => s.DayOfWeek == DayOfWeek.Monday)
+        .OrderBy(s => s.StartTime)
+        .ToList() ?? new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,6 +292,14 @@
                 {
                     doctor = await Db.Doctors
                         .FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
+                        
+                    if (doctor != null)
+                    {
+                        // Carica anche gli orari attuali del medico
+                        doctorSchedules = await Db.DoctorSchedules
+                            .Where(s => s.DoctorId == doctor.Id)
+                            .ToListAsync();
+                    }
                 }
             }
         }
@@ -225,22 +310,89 @@
     private void ApriModifica()
     {
         isEditing = true;
+        StateHasChanged();
     }
 
     private void ChiudiModifica()
     {
         isEditing = false;
+        StateHasChanged();
     }
 
     private async Task SalvaPaziente(Patient updatedPatient)
     {
         await Db.SaveChangesAsync();
         isEditing = false;
+        StateHasChanged();
     }
     
     private async Task SalvaDottore(Doctor updatedDoctor)
     {
         await Db.SaveChangesAsync();
         isEditing = false;
+        StateHasChanged();
+    }
+    
+    private void ApriModificaDisponibilita()
+    {
+        isEditingAvailability = true;
+        StateHasChanged();
+    }
+
+    private void ChiudiModificaDisponibilita()
+    {
+        isEditingAvailability = false;
+        StateHasChanged();
+    }
+
+private async Task SalvaDisponibilita(DisponibilitaDottoreForm.DisponibilitaViewModel newSchedules)
+    {
+        if (doctor == null) return;
+        
+        // Parsiamo le stringhe in TimeSpan per il database (i required ci garantiscono che i valori non sono nulli)
+        var matIni = TimeSpan.Parse(newSchedules.MattinaInizio!);
+        var matFin = TimeSpan.Parse(newSchedules.MattinaFine!);
+        var pomIni = TimeSpan.Parse(newSchedules.PomeriggioInizio!);
+        var pomFin = TimeSpan.Parse(newSchedules.PomeriggioFine!);
+
+        // 1. Eliminiamo i vecchi turni per fare pulizia
+        var oldSchedules = await Db.DoctorSchedules.Where(s => s.DoctorId == doctor.Id).ToListAsync();
+        Db.DoctorSchedules.RemoveRange(oldSchedules);
+        
+        // 2. Creiamo i nuovi turni dal Lunedì al Venerdì
+        var newDbSchedules = new List<DoctorSchedule>();
+        for (int i = 1; i <= 5; i++) // 1=Monday, 5=Friday
+        {
+            var day = (DayOfWeek)i;
+            
+            // Turno Mattina
+            newDbSchedules.Add(new DoctorSchedule
+            {
+                DoctorId = doctor.Id,
+                DayOfWeek = day,
+                StartTime = matIni,
+                EndTime = matFin,
+                SlotDurationMinutes = 15 // Valore di default
+            });
+            
+            // Turno Pomeriggio
+            newDbSchedules.Add(new DoctorSchedule
+            {
+                DoctorId = doctor.Id,
+                DayOfWeek = day,
+                StartTime = pomIni,
+                EndTime = pomFin,
+                SlotDurationMinutes = 15 // Valore di default
+            });
+        }
+        
+        // 3. Salvataggio nel DB
+        Db.DoctorSchedules.AddRange(newDbSchedules);
+        await Db.SaveChangesAsync();
+        
+        // 4. Aggiorniamo la vista
+        doctorSchedules = newDbSchedules;
+        isEditingAvailability = false;
+        StateHasChanged();
     }
 }

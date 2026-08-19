@@ -1,0 +1,147 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+
+@if (model != null)
+{
+    <EditForm Model="@model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        
+        <div class="row g-4 mb-3">
+            
+            <!-- SEZIONE MATTINA -->
+            <div class="col-12">
+                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-brightness-alt-high me-2"></i> Turno Mattina</h6>
+                <div class="row g-3 bg-light p-3 rounded-3 border">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Ora di Inizio</label>
+                        <!-- Usiamo InputText che fa il bind perfetto con le stringhe degli input "time" -->
+                        <InputText type="time" class="form-control" @bind-Value="model.MattinaInizio" />
+                        <ValidationMessage For="@(() => model.MattinaInizio)" class="text-danger small" />
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Ora di Fine</label>
+                        <InputText type="time" class="form-control" @bind-Value="model.MattinaFine" />
+                        <ValidationMessage For="@(() => model.MattinaFine)" class="text-danger small" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEZIONE POMERIGGIO -->
+            <div class="col-12">
+                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-brightness-high-fill me-2"></i> Turno Pomeriggio</h6>
+                <div class="row g-3 bg-light p-3 rounded-3 border">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Ora di Inizio</label>
+                        <InputText type="time" class="form-control" @bind-Value="model.PomeriggioInizio" />
+                        <ValidationMessage For="@(() => model.PomeriggioInizio)" class="text-danger small" />
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Ora di Fine</label>
+                        <InputText type="time" class="form-control" @bind-Value="model.PomeriggioFine" />
+                        <ValidationMessage For="@(() => model.PomeriggioFine)" class="text-danger small" />
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        @if (!string.IsNullOrEmpty(customError))
+        {
+            <div class="alert alert-danger p-2 rounded small"><i class="bi bi-exclamation-triangle-fill me-2"></i> @customError</div>
+        }
+
+        <ValidationSummary class="alert alert-warning p-2 rounded small" />
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button type="button" class="btn btn-light px-4" onclick="@OnCancel">Annulla</button>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">Salva Orari</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public List<DoctorSchedule> CurrentSchedules { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<DisponibilitaViewModel> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private DisponibilitaViewModel model = new();
+    private string? customError;
+
+    // Usiamo OnInitialized al posto di OnParametersSet per evitare che i dati inseriti dall'utente 
+    // vengano sovrascritti se la pagina si ridisegna a causa di un errore.
+    protected override void OnInitialized()
+    {
+        if (CurrentSchedules != null && CurrentSchedules.Any())
+        {
+            var mondaySchedules = CurrentSchedules
+                .Where(s => s.DayOfWeek == DayOfWeek.Monday)
+                .OrderBy(s => s.StartTime)
+                .ToList();
+            
+            // Formattiamo i TimeSpan in formato stringa per farli leggere al form
+            if (mondaySchedules.Count >= 1)
+            {
+                model.MattinaInizio = mondaySchedules[0].StartTime.ToString(@"hh\:mm");
+                model.MattinaFine = mondaySchedules[0].EndTime.ToString(@"hh\:mm");
+            }
+            
+            if (mondaySchedules.Count >= 2)
+            {
+                model.PomeriggioInizio = mondaySchedules[1].StartTime.ToString(@"hh\:mm");
+                model.PomeriggioFine = mondaySchedules[1].EndTime.ToString(@"hh\:mm");
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        customError = null;
+
+        // Convertiamo le stringhe sicure in TimeSpan per fare le logiche matematiche
+        var matIni = TimeSpan.Parse(model.MattinaInizio!);
+        var matFin = TimeSpan.Parse(model.MattinaFine!);
+        var pomIni = TimeSpan.Parse(model.PomeriggioInizio!);
+        var pomFin = TimeSpan.Parse(model.PomeriggioFine!);
+
+        if (matFin <= matIni)
+        {
+            customError = "La fine della mattina deve essere successiva all'inizio.";
+            return;
+        }
+        if (pomFin <= pomIni)
+        {
+            customError = "La fine del pomeriggio deve essere successiva all'inizio.";
+            return;
+        }
+        if (pomIni < matFin)
+        {
+            customError = "Il turno pomeridiano non può iniziare prima della fine del turno mattutino.";
+            return;
+        }
+
+        await OnSave.InvokeAsync(model);
+    }
+
+    public class DisponibilitaViewModel
+    {
+        // Proprietà convertite in string per il binding HTML5 perfetto
+        [Required(ErrorMessage = "Inizio mattina richiesto.")]
+        public string? MattinaInizio { get; set; }
+
+        [Required(ErrorMessage = "Fine mattina richiesta.")]
+        public string? MattinaFine { get; set; }
+
+        [Required(ErrorMessage = "Inizio pomeriggio richiesto.")]
+        public string? PomeriggioInizio { get; set; }
+
+        [Required(ErrorMessage = "Fine pomeriggio richiesta.")]
+        public string? PomeriggioFine { get; set; }
+    }
+}

@@ -1,4 +1,3 @@
-using Docly.Data; // o il namespace dove si trova il tuo ApplicationDbContext
 using Microsoft.EntityFrameworkCore;
 
 public class BookingService
