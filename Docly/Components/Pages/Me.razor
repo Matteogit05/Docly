@@ -249,20 +249,68 @@
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
                                 <div class="card-body px-4 px-md-5 py-5">
                                     <h4 class="fw-bold mb-4 text-danger border-bottom pb-2">
-                                        <i class="bi bi-calendar-x me-2"></i> Registra Nuova Assenza
+                                        <i class="bi bi-calendar-x me-2"></i> Gestione Assenze
                                     </h4>
                                     
                                     <p class="text-muted mb-4">Usa questo modulo per registrare ferie, malattie o permessi. Durante questi periodi, i pazienti non potranno prenotare visite.</p>
                                     
-                                    <!-- Inserimento in chiaro del form per le ferie -->
-                                    <FerieDottoreForm 
+                                    <!-- Form Inserimento Ferie -->
+                                    <FerieDottoreForm
                                         OnSave="SalvaFerie" />
                                         
+                                    @if (ferieSuccess)
+                                    {
+                                        <div class="alert alert-success shadow-sm mt-4 mb-0">
+                                            <i class="bi bi-check-circle-fill me-2"></i> Assenza registrata con successo!
+                                        </div>
+                                    }
+
+                                    <!-- Nuova Sezione: Elenco Assenze -->
+                                    <div class="mt-5 pt-4 border-top">
+                                        <h5 class="fw-bold mb-4"><i class="bi bi-list-check me-2"></i> Periodi di assenza inseriti</h5>
+                                        
+                                        @if(doctorAbsences == null || !doctorAbsences.Any())
+                                        {
+                                            <div class="alert alert-light border text-muted small">
+                                                Nessun periodo di assenza registrato.
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="row g-3">
+                                                @foreach(var assenza in doctorAbsences)
+                                                {
+                                                    <div class="col-md-6">
+                                                        <div class="card bg-light border-0 shadow-sm h-100">
+                                                            <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <div class="fw-bold text-dark mb-1">
+                                                                        <i class="bi bi-calendar-event me-1 text-danger"></i> 
+                                                                        @assenza.StartDate.ToString("dd/MM/yyyy") 
+                                                                        <i class="bi bi-arrow-right mx-1 text-muted"></i> 
+                                                                        @assenza.EndDate.ToString("dd/MM/yyyy")
+                                                                    </div>
+                                                                    @if(!string.IsNullOrEmpty(assenza.Reason))
+                                                                    {
+                                                                        <small class="text-muted d-block text-truncate" style="max-width: 200px;" title="@assenza.Reason">
+                                                                            @assenza.Reason
+                                                                        </small>
+                                                                    }
+                                                                </div>
+                                                                
+                                                                <!-- Bottone Elimina Assenza (Placeholder) -->
+                                                                <button class="btn btn-sm btn-outline-danger border-0" @onclick="() => EliminaAssenza(assenza)" title="Elimina assenza">
+                                                                    <i class="bi bi-trash-fill"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                    
                                 </div>
-                                @if (ferieSuccess)
-                                {
-                                    <div class="alert alert-info shadow-sm mb-4">Assenza registrata con successo!</div>
-                                }
                             </div>
 
                         </div>
@@ -281,13 +329,13 @@
     private Patient? patient;
     private Doctor? doctor;
     private List<DoctorSchedule> doctorSchedules = new();
+    private List<DoctorAbsence> doctorAbsences = new();
     
     private bool isLoading = true;
     private bool isEditing = false;
     private bool isEditingAvailability = false;
     private bool ferieSuccess = false;
 
-    // Proprietà calcolata che sostituisce il blocco @{} nell'HTML
     private List<DoctorSchedule> RefSchedules => doctorSchedules?
         .Where(s => s.DayOfWeek == DayOfWeek.Monday)
         .OrderBy(s => s.StartTime)
@@ -316,9 +364,14 @@
                         
                     if (doctor != null)
                     {
-                        // Carica anche gli orari attuali del medico
                         doctorSchedules = await Db.DoctorSchedules
                             .Where(s => s.DoctorId == doctor.Id)
+                            .ToListAsync();
+                            
+                        // Carichiamo anche l'elenco delle assenze
+                        doctorAbsences = await Db.DoctorAbsences
+                            .Where(a => a.DoctorId == doctor.Id)
+                            .OrderBy(a => a.StartDate)
                             .ToListAsync();
                     }
                 }
@@ -370,48 +423,41 @@
     {
         if (doctor == null) return;
         
-        // Parsiamo le stringhe in TimeSpan per il database (i required ci garantiscono che i valori non sono nulli)
         var matIni = TimeSpan.Parse(newSchedules.MattinaInizio!);
         var matFin = TimeSpan.Parse(newSchedules.MattinaFine!);
         var pomIni = TimeSpan.Parse(newSchedules.PomeriggioInizio!);
         var pomFin = TimeSpan.Parse(newSchedules.PomeriggioFine!);
 
-        // 1. Eliminiamo i vecchi turni per fare pulizia
         var oldSchedules = await Db.DoctorSchedules.Where(s => s.DoctorId == doctor.Id).ToListAsync();
         Db.DoctorSchedules.RemoveRange(oldSchedules);
         
-        // 2. Creiamo i nuovi turni dal Lunedì al Venerdì
         var newDbSchedules = new List<DoctorSchedule>();
-        for (int i = 1; i <= 5; i++) // 1=Monday, 5=Friday
+        for (int i = 1; i <= 5; i++)
         {
             var day = (DayOfWeek)i;
             
-            // Turno Mattina
             newDbSchedules.Add(new DoctorSchedule
             {
                 DoctorId = doctor.Id,
                 DayOfWeek = day,
                 StartTime = matIni,
                 EndTime = matFin,
-                SlotDurationMinutes = 15 // Valore di default
+                SlotDurationMinutes = 15
             });
             
-            // Turno Pomeriggio
             newDbSchedules.Add(new DoctorSchedule
             {
                 DoctorId = doctor.Id,
                 DayOfWeek = day,
                 StartTime = pomIni,
                 EndTime = pomFin,
-                SlotDurationMinutes = 15 // Valore di default
+                SlotDurationMinutes = 15
             });
         }
         
-        // 3. Salvataggio nel DB
         Db.DoctorSchedules.AddRange(newDbSchedules);
         await Db.SaveChangesAsync();
         
-        // 4. Aggiorniamo la vista
         doctorSchedules = newDbSchedules;
         isEditingAvailability = false;
         StateHasChanged();
@@ -421,7 +467,6 @@
     {
         if (doctor == null) return;
 
-        // Creazione dell'entità per il DB
         var nuovaAssenza = new DoctorAbsence
         {
             DoctorId = doctor.Id,
@@ -432,20 +477,27 @@
 
         Db.DoctorAbsences.Add(nuovaAssenza);
         await Db.SaveChangesAsync();
+        
+        // Aggiungiamo la nuova assenza alla lista a schermo e la riordiniamo
+        doctorAbsences.Add(nuovaAssenza);
+        doctorAbsences = doctorAbsences.OrderBy(a => a.StartDate).ToList();
 
         ferieSuccess = true;
+        StateHasChanged();
         
-        // Per ora mostriamo l'avvenuta scrittura tramite il reload della pagina (o chiudendo un flag in futuro)
-        // L'annullamento semplicemente non fa nulla o svuota il form (visto che è in chiaro)
+        // Facciamo scomparire il messaggio di successo dopo 3 secondi
+        await Task.Delay(3000);
+        ferieSuccess = false;
         StateHasChanged();
     }
 
-    /*
-    private void ChiudiFerie()
+    private async Task EliminaAssenza(DoctorAbsence assenza)
     {
-        // Se l'utente clicca annulla sul form ferie (che è in chiaro)
-        // Per ora possiamo ricaricare lo stato per "resettare" i dati iniziali
+        Db.DoctorAbsences.Remove(assenza);
+        await Db.SaveChangesAsync();
+
+        doctorAbsences.Remove(assenza);
+        
         StateHasChanged();
     }
-    */
 }
