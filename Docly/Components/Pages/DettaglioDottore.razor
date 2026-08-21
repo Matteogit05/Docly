@@ -8,6 +8,7 @@
 @inject ApplicationDbContext Db
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavManager
+@inject BookingService BookingService
 
 <PageTitle>Dettaglio Medico - Docly</PageTitle>
 
@@ -77,6 +78,100 @@
                                     </button>
 
                                 </div>
+
+<!-- SEZIONE PRENOTAZIONE -->
+                                <hr class="my-5" />
+                                <h4 class="fw-bold mb-4"><i class="bi bi-calendar-check text-primary me-2"></i>Prenota una Visita</h4>
+
+                                <!-- Messaggi di Successo o Errore -->
+                                @if (!string.IsNullOrEmpty(bookingMessage))
+                                {
+                                    <div class="alert alert-success shadow-sm d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill me-3 fs-4"></i>
+                                        <div>@bookingMessage</div>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <div class="alert alert-danger shadow-sm d-flex align-items-center">
+                                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                                        <div>@errorMessage</div>
+                                    </div>
+                                }
+
+                                <!-- Selezione Data (Calendario) -->
+                                <div class="mb-4">
+                                    <label for="bookingDate" class="form-label fw-bold text-secondary">1. Scegli una data:</label>
+                                    <!-- Usiamo @bind:after per ricaricare gli slot appena l'utente cambia la data -->
+                                    <input type="date" id="bookingDate" class="form-control form-control-lg w-auto shadow-sm" 
+                                           min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                           @bind="selectedDate" @bind:after="LoadSlots" />
+                                </div>
+
+                                <!-- Elenco Slot Orari -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-secondary">2. Orari disponibili:</label>
+                                    @if (isLoadingSlots)
+                                    {
+                                        <div class="d-flex align-items-center text-primary mt-2">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                            <span>Ricerca disponibilità in corso...</span>
+                                        </div>
+                                    }
+                                    else if (availableSlots == null || !availableSlots.Any())
+                                    {
+                                        <div class="alert alert-warning py-3 mt-2 border-0 shadow-sm">
+                                            <i class="bi bi-calendar-x me-2"></i>Nessuna disponibilità trovata per la data selezionata.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            @foreach (var slot in availableSlots)
+                                            {
+                                                var isSelected = slot == selectedSlot;
+                                                <button class="btn @(isSelected ? "btn-primary shadow" : "btn-outline-primary bg-white") px-3 py-2 fw-bold"
+                                                        @onclick="() => SelectSlot(slot)">
+                                                    @slot.ToString(@"hh\:mm")
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                <!-- Modulo Conferma (visibile solo dopo aver cliccato un orario) -->
+                                @if (selectedSlot != null)
+                                {
+                                    <div class="card bg-light border-0 shadow-sm mt-4 border-start border-primary border-4">
+                                        <div class="card-body p-4">
+                                            <h5 class="card-title fw-bold mb-3">3. Conferma Appuntamento</h5>
+                                            <p class="mb-4 text-dark">
+                                                Stai prenotando una visita per il <strong>@selectedDate.ToString("dd/MM/yyyy")</strong> 
+                                                alle ore <strong>@selectedSlot.Value.ToString(@"hh\:mm")</strong>.
+                                            </p>
+                                            
+                                            <div class="mb-4">
+                                                <label class="form-label fw-bold text-secondary">Note sui sintomi (opzionale):</label>
+                                                <textarea class="form-control shadow-sm" rows="3" @bind="symptomNotes" 
+                                                          placeholder="Descrivi brevemente il motivo della visita o i tuoi sintomi attuali..."></textarea>
+                                            </div>
+
+                                            <button class="btn btn-success btn-lg fw-bold px-4 shadow-sm" 
+                                                    @onclick="ConfirmBooking" disabled="@isBooking">
+                                                @if (isBooking)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span>Prenotazione in corso...</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-calendar-plus-fill me-2"></i><span>Conferma Prenotazione</span>
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+
                             </Authorized>
                         </AuthorizeView>
 
@@ -95,6 +190,14 @@
     private bool isLoading = true;
     private bool isFavorite = false;
     private int? currentPatientId;
+    private DateTime selectedDate = DateTime.Today; // Di default mostriamo oggi
+    private List<TimeSpan> availableSlots = new();
+    private TimeSpan? selectedSlot = null;
+    private string symptomNotes = "";
+    private bool isLoadingSlots = false;
+    private bool isBooking = false;
+    private string bookingMessage = "";
+    private string errorMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -132,6 +235,11 @@
         }
 
         isLoading = false;
+
+        if (currentPatientId != null)
+        {
+            await LoadSlots();
+        }
     }
 
     private async Task ToggleFavorite()
@@ -159,6 +267,63 @@
         }
     }
 
+    private async Task LoadSlots()
+    {
+        isLoadingSlots = true;
+        selectedSlot = null;
+        bookingMessage = "";
+        errorMessage = "";
+
+        availableSlots = await BookingService.GetAvailableSlotsAsync(DoctorId, selectedDate);
+        isLoadingSlots = false;
+    }
+
+    private void SelectSlot(TimeSpan slot)
+    {
+        selectedSlot = slot;
+    }
+
+    private async Task ConfirmBooking()
+    {
+        if (selectedSlot == null || currentPatientId == null) return;
+
+        isBooking = true;
+        bookingMessage = "";
+        errorMessage = "";
+
+        try
+        {
+            var startDateTime = selectedDate.Date.Add(selectedSlot.Value);
+            var endDateTime = startDateTime.AddMinutes(15);
+
+            var appointment = new Appointment
+            {
+                PatientId = currentPatientId.Value,
+                DoctorId = DoctorId,
+                StartTime = startDateTime,
+                EndTime = endDateTime,
+                Status = 0,
+                SymptomNotes = symptomNotes
+            };
+
+            Db.Appointments.Add(appointment);
+            await Db.SaveChangesAsync();
+
+            bookingMessage = "Prenotazione confermata con successo!";
+            selectedSlot = null;
+            symptomNotes = "";
+
+            await LoadSlots();
+        }
+        catch
+        {
+            errorMessage = "Si è verificato un errore durante la prenotazione.";
+        }
+        finally
+        {
+            isBooking = false;
+        }
+    }
     private void OpenChat()
     {
         // Naviga verso la futura pagina della chat per il medico specifico

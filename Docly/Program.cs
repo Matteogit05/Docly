@@ -30,6 +30,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<BookingService>();
 
 var app = builder.Build();
 

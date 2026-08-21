@@ -1,0 +1,102 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+
+@if (model != null)
+{
+    <EditForm Model="@model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Nome</label>
+                <InputText class="form-control" @bind-Value="model.FirstName" />
+                <ValidationMessage For="@(() => model.FirstName)" class="text-danger small" />
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Cognome</label>
+                <InputText class="form-control" @bind-Value="model.LastName" />
+                <ValidationMessage For="@(() => model.LastName)" class="text-danger small" />
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Data di Nascita</label>
+                <InputDate class="form-control" @bind-Value="model.DateOfBirth" />
+                <ValidationMessage For="@(() => model.DateOfBirth)" class="text-danger small" />
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Codice Fiscale</label>
+                <InputText class="form-control text-uppercase" @bind-Value="model.TaxId" />
+                <ValidationMessage For="@(() => model.TaxId)" class="text-danger small" />
+            </div>
+        </div>
+
+        <ValidationSummary class="alert alert-warning p-2 rounded small" />
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button type="button" class="btn btn-light px-4" onclick="@OnCancel">Annulla</button>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">Salva Modifiche</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Patient CurrentPatient { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<Patient> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private PazienteViewModel model = new();
+
+    protected override void OnParametersSet()
+    {
+        // Se il parametro è stato passato e il ViewModel non è ancora inizializzato (o vogliamo forzare un reset)
+        // Mappiamo i dati dall'Entity al ViewModel
+        if (CurrentPatient != null && string.IsNullOrEmpty(model.FirstName))
+        {
+            model.FirstName = CurrentPatient.FirstName;
+            model.LastName = CurrentPatient.LastName;
+            model.DateOfBirth = CurrentPatient.DateOfBirth;
+            model.TaxId = CurrentPatient.TaxId;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        // Mappiamo i dati dal ViewModel indietro all'Entity
+        CurrentPatient.FirstName = model.FirstName;
+        CurrentPatient.LastName = model.LastName;
+        CurrentPatient.DateOfBirth = model.DateOfBirth;
+        CurrentPatient.TaxId = model.TaxId.ToUpper(); // Forza l'uppercase per sicurezza
+
+        // Informiamo il componente genitore (Me.razor) che i dati sono pronti per essere salvati
+        await OnSave.InvokeAsync(CurrentPatient);
+    }
+
+    // Il ViewModel interno per la validazione
+    public class PazienteViewModel
+    {
+        [Required(ErrorMessage = "Il nome è obbligatorio.")]
+        [StringLength(100, ErrorMessage = "Il nome non può superare i 100 caratteri.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Il cognome è obbligatorio.")]
+        [StringLength(100, ErrorMessage = "Il cognome non può superare i 100 caratteri.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La data di nascita è obbligatoria.")]
+        public DateTime DateOfBirth { get; set; }
+
+        [Required(ErrorMessage = "Il codice fiscale è obbligatorio.")]
+        /*
+        [StringLength(16, MinimumLength = 16, ErrorMessage = "Il codice fiscale deve essere esattamente di 16 caratteri.")]
+        [RegularExpression(@"^[A-Z0-9]{16}$", ErrorMessage = "Formato codice fiscale non valido.")]
+        */
+        public string TaxId { get; set; } = string.Empty;
+    }
+}

@@ -30,7 +30,9 @@ public class Doctor
 
     public ICollection<FavoriteDoctor> FavoriteDoctors { get; set; } = new List<FavoriteDoctor>();
 
-    public ICollection<DoctorAvailability> DoctorAvailabilities { get; set; } = new List<DoctorAvailability>();
+    public ICollection<DoctorSchedule> DoctorSchedules { get; set; }
+
+    public ICollection<DoctorAbsence> DoctorAbsences { get; set; }
 
     public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 

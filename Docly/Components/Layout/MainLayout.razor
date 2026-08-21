@@ -1,7 +1,20 @@
 ﻿@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Docly.Data
+@using Docly.Data.Entities
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
 
 <div class="page">
+
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
     <main>
         <!-- BARRA SUPERIORE -->
         <div class="top-row px-4 shadow-sm bg-light d-flex justify-content-between align-items-center">
@@ -10,6 +23,71 @@
             <AuthorizeView>
                 <Authorized>
                     <div class="d-flex align-items-center">
+                        
+                        <!-- ICONA NOTIFICHE E MENU A TENDINA -->
+                        <div class="dropdown me-4 position-relative">
+                            
+                            <!-- Campanella -->
+                            <button class="btn btn-link text-dark p-0 position-relative" @onclick="ToggleNotifications" style="text-decoration: none;">
+                                <i class="bi bi-bell-fill fs-5"></i>
+                                @if (unreadCount > 0)
+                                {
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+                                        @unreadCount
+                                    </span>
+                                }
+                            </button>
+
+                            <!-- Tendina Notifiche -->
+                            @if (showNotifications)
+                            {
+                                <div class="dropdown-menu dropdown-menu-end show shadow-lg p-0" style="position: absolute; right: -10px; top: 120%; min-width: 320px; z-index: 1050; border-radius: 0.75rem; overflow: hidden;">
+                                    
+                                    <!-- Header Tendina -->
+                                    <div class="dropdown-header bg-light border-bottom fw-bold d-flex justify-content-between align-items-center p-3">
+                                        <span class="text-dark fs-6">Notifiche</span>
+                                        @if(unreadCount > 0)
+                                        {
+                                            <button class="btn btn-sm btn-link p-0 text-decoration-none" @onclick="MarkAllAsRead">Segna tutte come lette</button>
+                                        }
+                                    </div>
+
+                                    <!-- Lista Notifiche -->
+                                    <div style="max-height: 350px; overflow-y: auto;">
+                                        @if (!notifications.Any())
+                                        {
+                                            <div class="text-muted text-center py-4">
+                                                <i class="bi bi-bell-slash fs-3 d-block mb-2"></i>
+                                                Non hai nuove notifiche.
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var n in notifications)
+                                            {
+                                                <button type="button" class="dropdown-item py-3 border-bottom @(n.IsRead ? "bg-white" : "bg-light")" @onclick="() => ReadAndNavigate(n)" style="white-space: normal;">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <strong class="@(n.IsRead ? "text-secondary" : "text-primary")" style="font-size: 0.9rem;">
+                                                            @if(!n.IsRead) { <span class="badge bg-primary rounded-circle p-1 me-1"> </span> }
+                                                            @n.Title
+                                                        </strong>
+                                                        <small class="text-muted" style="font-size: 0.75rem;">@n.CreatedAt.ToString("dd/MM HH:mm")</small>
+                                                    </div>
+                                                    <p class="mb-0 @(n.IsRead ? "text-muted" : "text-dark")" style="font-size: 0.85rem; line-height: 1.4;">@n.Message</p>
+                                                </button>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Sfondo invisibile per chiudere la tendina cliccando fuori -->
+                            @if (showNotifications)
+                            {
+                                <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;" @onclick="() => showNotifications = false"></div>
+                            }
+                        </div>
+
                         <span class="me-3">
                             <strong>@context.User.Identity?.Name</strong> 
                             <span class="badge bg-secondary ms-1">@GetRole(context)</span>
@@ -39,7 +117,78 @@
 </div>
 
 @code {
-    // Piccolo metodo helper per mostrare il ruolo nell'interfaccia
+    private bool showNotifications = false;
+    private List<Notification> notifications = new();
+    private int unreadCount => notifications.Count(n => !n.IsRead);
+    private string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(currentUserId))
+            {
+                await LoadNotifications();
+            }
+        }
+    }
+
+    private async Task LoadNotifications()
+    {
+        if (string.IsNullOrEmpty(currentUserId)) return;
+
+        // Carica le ultime 15 notifiche dell'utente
+        notifications = await Db.Notifications
+            .Where(n => n.IdentityUserId == currentUserId)
+            .OrderByDescending(n => n.CreatedAt)
+            .Take(15) 
+            .ToListAsync();
+    }
+
+    private void ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+    }
+
+    private async Task ReadAndNavigate(Notification n)
+    {
+        // Se non è letta, la aggiorniamo nel DB
+        if (!n.IsRead)
+        {
+            n.IsRead = true;
+            Db.Notifications.Update(n);
+            await Db.SaveChangesAsync();
+        }
+
+        // Chiudi la tendina
+        showNotifications = false;
+
+        // Naviga verso l'appuntamento (se l'URL è presente)
+        if (!string.IsNullOrEmpty(n.TargetUrl))
+        {
+            NavManager.NavigateTo(n.TargetUrl);
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        var unreadList = notifications.Where(n => !n.IsRead).ToList();
+        foreach (var n in unreadList)
+        {
+            n.IsRead = true;
+            Db.Notifications.Update(n);
+        }
+        
+        if (unreadList.Any())
+        {
+            await Db.SaveChangesAsync();
+        }
+    }
+
     private string GetRole(AuthenticationState context)
     {
         if (context.User.IsInRole("Admin")) return "Amministratore";

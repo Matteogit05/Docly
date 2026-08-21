@@ -1,0 +1,227 @@
+@page "/appointment/{AppointmentId:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Docly.Data
+@using Docly.Data.Entities
+@using Docly.Data.Shared
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<PageTitle>Dettaglio Appuntamento - Docly</PageTitle>
+
+<div class="container mt-5">
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+        </div>
+    }
+    else if (appointment == null)
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="bi bi-exclamation-triangle"></i> Appuntamento non trovato o non autorizzato.
+        </div>
+        <button class="btn btn-outline-primary mt-3" @onclick='() => NavManager.NavigateTo("/agenda")'>Torna all'Agenda</button>
+    }
+    else
+    {
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-8">
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-body p-5">
+                        
+                        <!-- Intestazione -->
+                        <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+                            @if (isDoctor)
+                            {
+                                <div class="bg-light text-primary rounded-circle d-flex justify-content-center align-items-center me-4" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-person-fill fs-1"></i>
+                                </div>
+                                <div>
+                                    <h5 class="text-secondary mb-1">Paziente</h5>
+                                    <h2 class="mb-0 fw-bold text-dark">@appointment.Patient.FirstName @appointment.Patient.LastName</h2>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-4" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-person-badge fs-1"></i>
+                                </div>
+                                <div>
+                                    <h5 class="text-secondary mb-1">Medico Specialista</h5>
+                                    <h2 class="mb-0 fw-bold text-dark">Dr. @appointment.Doctor.FirstName @appointment.Doctor.LastName</h2>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Dettagli Appuntamento -->
+                        <h5 class="fw-bold mb-3"><i class="bi bi-info-square-fill text-primary me-2"></i> Dettagli Visita</h5>
+                        
+                        <div class="row mb-4 bg-light p-3 rounded-3 border">
+                            <div class="col-sm-6 mb-3 mb-sm-0">
+                                <span class="d-block text-muted fw-bold text-uppercase mb-1" style="font-size: 0.8rem;">Data</span>
+                                <span class="fs-5"><i class="bi bi-calendar-event me-2"></i> @appointment.StartTime.ToString("dd MMMM yyyy")</span>
+                            </div>
+                            <div class="col-sm-6">
+                                <span class="d-block text-muted fw-bold text-uppercase mb-1" style="font-size: 0.8rem;">Orario</span>
+                                <span class="fs-5"><i class="bi bi-clock me-2"></i> @appointment.StartTime.ToString("HH:mm") - @appointment.EndTime.ToString("HH:mm")</span>
+                            </div>
+                        </div>
+
+                        <!-- Note Sintomi -->
+                        @if (!string.IsNullOrWhiteSpace(appointment.SymptomNotes))
+                        {
+                            <div class="mb-5">
+                                <h5 class="fw-bold mb-2"><i class="bi bi-journal-text text-primary me-2"></i> Note e Sintomi</h5>
+                                <p class="text-dark p-3 bg-light rounded-3 border" style="line-height: 1.6;">
+                                    @appointment.SymptomNotes
+                                </p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-5">
+                                <h5 class="fw-bold mb-2"><i class="bi bi-journal-text text-secondary me-2"></i> Note e Sintomi</h5>
+                                <p class="text-muted fst-italic p-3 bg-light rounded-3 border">Nessuna nota inserita per questo appuntamento.</p>
+                            </div>
+                        }
+
+                        <!-- Pulsanti d'Azione -->
+                        <div class="d-flex gap-3 flex-wrap mt-4 border-top pt-4">
+                            <button class="btn btn-primary px-4 py-2 fw-bold d-flex align-items-center" @onclick="OpenChat">
+                                <i class="bi bi-chat-dots-fill me-2 fs-5"></i> Apri Chat
+                            </button>
+
+                            @if (appointment.Status == 0 || appointment.Status == 1) // Pending o Confirmed
+                            {
+                                <button class="btn btn-outline-danger px-4 py-2 fw-bold d-flex align-items-center" @onclick="CancelAppointment" disabled="@isCancelling">
+                                    @if(isCancelling)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <span>Annullamento...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-x-circle-fill me-2 fs-5"></i> <span>Annulla Appuntamento</span>
+                                    }
+                                </button>
+                            }
+                            else if (appointment.Status == 2)
+                            {
+                                <span class="badge bg-danger fs-6 d-flex align-items-center px-4 py-2"><i class="bi bi-x-circle-fill me-2"></i> Appuntamento Annullato</span>
+                            }
+                            else if (appointment.Status == 3)
+                            {
+                                <span class="badge bg-success fs-6 d-flex align-items-center px-4 py-2"><i class="bi bi-check-circle-fill me-2"></i> Visita Completata</span>
+                            }
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int AppointmentId { get; set; }
+
+    private Appointment? appointment;
+    private bool isLoading = true;
+    private bool isDoctor = false;
+    private bool isCancelling = false; // Aggiunto flag per l'interfaccia
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (identityUserId != null)
+            {
+                isDoctor = user.IsInRole("Doctor");
+
+                // Carica l'appuntamento includendo Doctor e Patient per i dettagli
+                var query = Db.Appointments
+                    .Include(a => a.Doctor)
+                    .Include(a => a.Patient)
+                    .AsQueryable();
+
+                // Sicurezza: un utente può vedere solo i suoi appuntamenti
+                if (isDoctor)
+                {
+                    var doctor = await Db.Doctors.AsNoTracking().FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
+                    if (doctor != null)
+                    {
+                        appointment = await query.FirstOrDefaultAsync(a => a.Id == AppointmentId && a.DoctorId == doctor.Id);
+                    }
+                }
+                else if (user.IsInRole("Patient"))
+                {
+                    var patient = await Db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
+                    if (patient != null)
+                    {
+                        appointment = await query.FirstOrDefaultAsync(a => a.Id == AppointmentId && a.PatientId == patient.Id);
+                    }
+                }
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private void OpenChat()
+    {
+        // Logica per creare/aprire la sessione di chat
+        // NavManager.NavigateTo($"/chat/appointment/{AppointmentId}");
+    }
+
+    private async Task CancelAppointment()
+    {
+        if (appointment != null)
+        {
+            isCancelling = true;
+            
+            // 1. Cambia lo stato in Annullato (2)
+            appointment.Status = 2; 
+
+            // 2. Crea la notifica
+            var notification = new Notification
+            {
+                Title = "Appuntamento Annullato",
+                CreatedAt = DateTime.Now,
+                IsRead = false,
+                TargetUrl = $"/appointment/{appointment.Id}"
+            };
+
+            // Determiniamo chi sta annullando e formattiamo il messaggio per il destinatario
+            if (isDoctor)
+            {
+                // Il medico annulla, la notifica va al paziente
+                notification.IdentityUserId = appointment.Patient.IdentityUserId;
+                notification.Message = $"La tua visita del {appointment.StartTime.ToString("dd/MM/yyyy alle HH:mm")} con il Dr. {appointment.Doctor.LastName} è stata annullata.";
+            }
+            else
+            {
+                // Il paziente annulla, la notifica va al medico
+                notification.IdentityUserId = appointment.Doctor.IdentityUserId;
+                notification.Message = $"L'appuntamento del {appointment.StartTime.ToString("dd/MM/yyyy alle HH:mm")} con il paziente {appointment.Patient.FirstName} {appointment.Patient.LastName} è stato annullato.";
+            }
+
+            // 3. Salva nel DB
+            Db.Notifications.Add(notification);
+            await Db.SaveChangesAsync();
+            
+            isCancelling = false;
+        }
+    }
+}

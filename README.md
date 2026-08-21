@@ -1,5 +1,5 @@
 # Docly
-Docly is a website where you can book a medical exam or simple appointments with your main doctor.
+Docly is a web-app where you can book a medical exam or simple appointments with your main doctor.
 
 Docly is currently under development
 
