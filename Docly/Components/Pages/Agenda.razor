@@ -25,12 +25,29 @@
                 </div>
             </div>
 
-            <!-- Selezione Data -->
+            <!-- Selezione Data con Frecce Direzionali -->
             <div class="row mb-4">
-                <div class="col-12 col-md-6 col-lg-4">
+                <div class="col-12 col-md-8 col-lg-5">
                     <label for="agendaDate" class="form-label fw-bold text-secondary">Seleziona una data:</label>
-                    <input type="date" id="agendaDate" class="form-control form-control-lg shadow-sm" 
-                           @bind="selectedDate" @bind:after="LoadDoctorAppointments" />
+                    <div class="input-group shadow-sm">
+                        <!-- Bottone Indietro -->
+                        <button class="btn bg-white border text-primary px-3 px-md-4" type="button" 
+                                @onclick="GoToPreviousDay" 
+                                disabled="@IsPreviousDayDisabled">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        
+                        <!-- Input Calendario -->
+                        <input type="date" id="agendaDate" class="form-control text-center fw-bold" 
+                               min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               @bind="selectedDate" @bind:after="LoadDoctorAppointments" />
+                        
+                        <!-- Bottone Avanti -->
+                        <button class="btn bg-white border text-primary px-3 px-md-4" type="button" 
+                                @onclick="GoToNextDay">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -205,6 +222,9 @@
     private int? currentDoctorId;
     private DateTime selectedDate = DateTime.Today; // Mostra oggi di default
     private List<Appointment> doctorAppointments = new();
+    
+    //restituisce true se la data selezionata è uguale o minore a oggi
+    private bool IsPreviousDayDisabled => selectedDate.Date <= DateTime.Today;
 
     // --- Variabili per il Paziente ---
     private Appointment? nextAppointment;
@@ -281,6 +301,23 @@
                      && (a.Status == 0 || a.Status == 1))
             .OrderBy(a => a.StartTime)
             .ToListAsync();
+    }
+
+    // Naviga al giorno precedente (se consentito)
+    private async Task GoToPreviousDay()
+    {
+        if (selectedDate.Date > DateTime.Today)
+        {
+            selectedDate = selectedDate.AddDays(-1);
+            await LoadDoctorAppointments();
+        }
+    }
+
+    // Naviga al giorno successivo
+    private async Task GoToNextDay()
+    {
+        selectedDate = selectedDate.AddDays(1);
+        await LoadDoctorAppointments();
     }
 
     private void VediAppuntamento(int appointmentId)
