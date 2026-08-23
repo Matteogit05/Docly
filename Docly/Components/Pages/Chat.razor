@@ -1,0 +1,739 @@
+@page "/chat"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using System.IO
+@using Docly.Data.Entities
+@inject ApplicationDbContext Db
+@inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<PageTitle>Messaggi - Docly</PageTitle>
+
+<div class="container mt-4 mb-5">
+    <div class="card shadow border-0 rounded-4 overflow-hidden" style="height: 75vh;">
+        <div class="row g-0 h-100">
+            
+            <!-- ========================================== -->
+            <!-- COLONNA SINISTRA: LISTA CHAT (SIDEBAR)     -->
+            <!-- ========================================== -->
+            <div class="col-md-4 border-end bg-light h-100 d-flex flex-column">
+                
+                <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center shadow-sm">
+                    <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-chat-dots-fill me-2"></i>Messaggi</h5>
+                    <button class="btn btn-sm btn-primary rounded-circle shadow-sm" title="Nuova Chat" onclick="@GestisciNuovaChat">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                </div>
+
+                <div class="flex-grow-1 overflow-auto p-2 custom-scrollbar">
+                    @if (isLoading)
+                    {
+                        <div class="text-center my-4 text-muted">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Caricamento...
+                        </div>
+                    }
+                    else if (!myChats.Any())
+                    {
+                        <div class="text-center my-5 text-muted small">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nessuna conversazione trovata.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var chat in myChats)
+                        {
+                            <div class="card border-0 shadow-sm mb-2 chat-item @(selectedChat?.Id == chat.Id ? "selected-chat" : "")" 
+                                 @onclick="() => SelezionaChat(chat)">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <h6 class="mb-0 fw-bold text-dark">
+                                            @(isPatient ? $"Dr. {chat.Doctor.LastName}" : $"{chat.Patient.FirstName} {chat.Patient.LastName}")
+                                        </h6>
+                                        <small class="text-muted" style="font-size: 0.7rem;">@chat.CreatedAt.ToString("dd/MM")</small>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted text-truncate" style="max-width: 80%;">
+                                            @(chat.AppointmentId.HasValue ? "Rif: Appuntamento" : "Chat libera")
+                                        </small>
+                                        @if (unreadCounts.ContainsKey(chat.Id) && unreadCounts[chat.Id] > 0)
+                                        {
+                                            <span class="badge bg-danger rounded-pill shadow-sm" style="font-size: 0.7rem;">@unreadCounts[chat.Id]</span>
+                                        }
+                                        else if (chat.Status == 1)
+                                        {
+                                            <i class="bi bi-lock-fill text-muted small" title="Chat Chiusa"></i>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- COLONNA DESTRA: AREA MESSAGGI ATTIVA       -->
+            <!-- ========================================== -->
+            <div class="col-md-8 bg-white h-100 d-flex flex-column position-relative">
+                
+                @if (selectedChat == null)
+                {
+                    <div class="m-auto text-center text-muted">
+                        <div class="bg-light rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 80px; height: 80px;">
+                            <i class="bi bi-chat-quote fs-1 text-secondary"></i>
+                        </div>
+                        <h5 class="fw-bold">Le tue Conversazioni</h5>
+                        <p class="small">Seleziona una chat dalla lista o iniziane una nuova.</p>
+                    </div>
+                }
+                else
+                {
+                    <!-- Header della Chat -->
+                    <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center shadow-sm">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary bg-opacity-10 rounded-circle d-flex justify-content-center align-items-center text-secondary me-3" style="width: 45px; height: 45px;">
+                                <i class="bi bi-person-fill fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">@(isPatient ? $"Dr. {selectedChat.Doctor.LastName}" : $"{selectedChat.Patient.FirstName} {selectedChat.Patient.LastName}")</h6>
+                                <small class="text-muted" style="font-size: 0.8rem;">
+                                    @(selectedChat.AppointmentId.HasValue ? "Riferimento Appuntamento" : "Chat Libera")
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            @if (selectedChat.Status == 0)
+                            {
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success me-2">Aperta</span>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="ChiudiChat" title="Chiudi Chat">
+                                    <i class="bi bi-x-circle me-1"></i> Chiudi
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">Chiusa</span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Area Cronologia Messaggi -->
+                    <div id="chatContainer" class="flex-grow-1 p-4 overflow-auto custom-scrollbar" style="background-color: #e5ddd5;">
+                        @if (isLoadingMessages)
+                        {
+                            <div class="text-center my-3"><div class="spinner-border text-primary spinner-border-sm opacity-50"></div></div>
+                        }
+                        else if (!currentMessages.Any())
+                        {
+                            <div class="text-center my-4">
+                                <span class="bg-white text-muted small px-3 py-1 rounded-pill shadow-sm">Nessun messaggio. Scrivi per iniziare!</span>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach(var msg in currentMessages)
+                            {
+                                bool isMine = msg.SenderId == currentUserId && msg.SenderType == (isPatient ? 0 : 1);
+                                
+                                <div class="d-flex mb-3 @(isMine ? "justify-content-end" : "justify-content-start")">
+                                    <div class="p-2 px-3 shadow-sm position-relative @(isMine ? "message-mine" : "message-other")" style="max-width: 75%;">
+                                        
+                                        <!-- Testo del Messaggio -->
+                                        <div style="font-size: 0.95rem; word-wrap: break-word;">@msg.Content</div>
+                                        
+                                        <!-- ALLEGATO (SE PRESENTE) -->
+                                        @if (msg.Attachments != null && msg.Attachments.Any())
+                                        {
+                                            var att = msg.Attachments.First();
+                                            <div class="mt-2 p-2 bg-white bg-opacity-50 rounded border border-secondary border-opacity-25 d-flex align-items-center">
+                                                <i class="bi bi-file-earmark-medical fs-3 me-3 text-primary"></i>
+                                                <div class="me-3">
+                                                    <div class="text-truncate fw-bold" style="max-width: 150px; font-size: 0.8rem;">@att.FileName</div>
+                                                    <div style="font-size: 0.65rem;" class="text-muted text-uppercase">Documento @att.FileExtension</div>
+                                                </div>
+                                                <button class="btn btn-sm btn-primary ms-auto rounded-circle" style="width:30px; height:30px; padding:0;" @onclick="() => ScaricaAllegato(att)" title="Scarica">
+                                                    <i class="bi bi-download"></i>
+                                                </button>
+                                            </div>
+                                        }
+
+                                        <!-- Orario -->
+                                        <div class="text-end mt-1" style="font-size: 0.65rem; opacity: 0.7;">
+                                            @msg.SentAt.ToString("HH:mm")
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <!-- Footer / Area Input Testo -->
+                    @if (selectedChat.Status == 0)
+                    {
+                        <!-- Messaggio di errore temporaneo (per validazioni di sicurezza file) -->
+                        @if(!string.IsNullOrEmpty(errorMessaggio))
+                        {
+                            <div class="bg-danger text-white px-3 py-1 text-center small">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> @errorMessaggio
+                            </div>
+                        }
+
+                        <div class="p-3 bg-white border-top">
+                            <div class="input-group align-items-center bg-light rounded-pill p-1 border">
+                                
+                                <!-- Input File Nascosto & Label Graffetta -->
+                                <input type="file" id="fileAttach" @ref="fileAttachRef" style="display:none;" onchange="@GestisciUploadAllegato" accept=".jpg,.jpeg,.png,.pdf" />
+                                
+                                <label for="fileAttach" class="btn btn-light rounded-circle text-secondary ms-1 d-flex justify-content-center align-items-center" style="width: 40px; height: 40px; cursor: pointer; margin-bottom: 0;" title="Allega file">
+                                    <i class="bi bi-paperclip fs-5"></i>
+                                </label>
+                                
+                                <!-- Input Testo -->
+                                <input type="text" class="form-control border-0 bg-transparent shadow-none px-3" 
+                                       placeholder="Scrivi un messaggio..." 
+                                       @bind="newMessageContent" 
+                                       @bind:event="oninput" 
+                                       @onkeyup="HandleKeyUp" />
+                                
+                                <!-- Bottone Invia -->
+                                <button class="btn btn-primary rounded-circle me-1 d-flex justify-content-center align-items-center" 
+                                        style="width: 40px; height: 40px; padding: 0;"
+                                        onclick="@InviaMessaggioTesto" 
+                                        disabled="@string.IsNullOrWhiteSpace(newMessageContent)">
+                                    <i class="bi bi-send-fill" style="margin-left: -2px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-3 bg-light border-top text-center text-muted small">
+                            <i class="bi bi-lock-fill me-1"></i> Questa conversazione è stata chiusa. Non è più possibile inviare messaggi.
+                        </div>
+                    }
+                }
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@if (showNewChatModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-primary">Inizia una Nuova Conversazione</h5>
+                    <button type="button" class="btn-close" @onclick="ChiudiModalChat"></button>
+                </div>
+                <div class="modal-body pt-3 pb-4">
+                    <p class="text-muted small mb-4">Scegli uno dei tuoi medici preferiti con cui avviare una chat libera. Il medico potrà rispondere alle tue richieste.</p>
+
+                    @if (preferitiPaziente == null || !preferitiPaziente.Any())
+                    {
+                        <div class="alert alert-light border text-center text-muted">
+                            <i class="bi bi-star-half fs-4 d-block mb-2"></i>
+                            Non hai ancora aggiunto nessun medico ai preferiti.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush border rounded-3 overflow-hidden">
+                            @foreach (var doc in preferitiPaziente)
+                            {
+                                <button class="list-group-item list-group-item-action d-flex align-items-center p-3" @onclick="() => AvviaNuovaChat(doc.Id)">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="bi bi-person-fill fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">Dr. @doc.FirstName @doc.LastName</h6>
+                                        <small class="text-muted">@doc.Specialization</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right ms-auto text-muted"></i>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .cursor-pointer { cursor: pointer; }
+    
+    .chat-item { 
+        transition: all 0.2s; 
+        cursor: pointer;
+        border-left: 4px solid transparent !important;
+    }
+    .chat-item:hover { background-color: #f8f9fa !important; }
+    
+    .selected-chat { 
+        background-color: #e9ecef !important; 
+        border-left: 4px solid #0d6efd !important;
+    }
+
+    .message-mine {
+        background-color: #d9fdd3;
+        color: #111b21;
+        border-radius: 12px 0px 12px 12px;
+    }
+    
+    .message-other {
+        background-color: #ffffff;
+        color: #111b21;
+        border-radius: 0px 12px 12px 12px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 10px; }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool isLoadingMessages = false;
+    private bool isPatient = false; 
+    private int currentUserId; 
+    
+    private List<ChatSession> myChats = new();
+    private ChatSession? selectedChat;
+    
+    private List<Message> currentMessages = new();
+    private string newMessageContent = "";
+    
+    // Variabili per l'upload
+    private ElementReference fileAttachRef;
+    private string errorMessaggio = "";
+
+    private bool showNewChatModal = false;
+    private List<Doctor> preferitiPaziente = new();
+    private Dictionary<int, int> unreadCounts = new();
+
+    [SupplyParameterFromQuery(Name = "chatId")]
+    public int? RequestedChatId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (identityUserId != null)
+            {
+                if (user.IsInRole("Patient"))
+                {
+                    isPatient = true;
+                    var p = await Db.Patients.FirstOrDefaultAsync(x => x.IdentityUserId == identityUserId);
+                    if (p != null) currentUserId = p.Id;
+                }
+                else if (user.IsInRole("Doctor"))
+                {
+                    isPatient = false;
+                    var d = await Db.Doctors.FirstOrDefaultAsync(x => x.IdentityUserId == identityUserId);
+                    if (d != null) currentUserId = d.Id;
+                }
+
+                if (currentUserId > 0)
+                {
+                    var query = Db.ChatSessions
+                        .Include(c => c.Patient)
+                        .Include(c => c.Doctor)
+                        .AsQueryable();
+
+                    if (isPatient)
+                        query = query.Where(c => c.PatientId == currentUserId);
+                    else
+                        query = query.Where(c => c.DoctorId == currentUserId);
+
+                    myChats = await query
+                        .OrderByDescending(c => c.CreatedAt)
+                        .ToListAsync();
+
+                    var chatIds = myChats
+                        .Select(c => c.Id)
+                        .ToList();
+                    
+                    int mySenderType = isPatient ? 0 : 1;
+                    
+                    var unreadData = await Db.Messages
+                        .Where(m => chatIds.Contains(m.ChatSessionId) && m.SenderType != mySenderType && !m.IsRead)
+                        .GroupBy(m => m.ChatSessionId)
+                        .Select(g => new {ChatId = g.Key, Count = g.Count()})
+                        .ToListAsync();
+                    
+                    unreadCounts = chatIds.ToDictionary(id => id, id => 0);
+                    foreach (var item in unreadData)
+                    {
+                        unreadCounts[item.ChatId] = item.Count;
+                    }
+                }
+            }
+        }
+
+        if (RequestedChatId.HasValue)
+        {
+            var chatDaAprire = myChats.FirstOrDefault(c => c.Id == RequestedChatId.Value);
+            if (chatDaAprire != null)
+            {
+                await SelezionaChat(chatDaAprire);
+            }
+        }
+
+        //Notifier.OnMessageReceived += HandleNewMessage;
+        isLoading = false;
+    }
+
+    private async Task SelezionaChat(ChatSession chat)
+    {
+        selectedChat = chat;
+        isLoadingMessages = true;
+        errorMessaggio = "";
+        
+        var freshChat = await Db.ChatSessions.FindAsync(chat.Id);
+        if (freshChat != null) selectedChat.Status = freshChat.Status;
+
+        int mySenderType = isPatient ? 0 : 1;
+        var messaggiDaLeggere = await Db.Messages
+            .Where(m => m.ChatSessionId == chat.Id && m.SenderType != mySenderType && !m.IsRead)
+            .ToListAsync();
+        
+        if (messaggiDaLeggere.Any())
+        {
+            foreach (var m in messaggiDaLeggere)
+            {
+                m.IsRead = true;
+            }
+            await Db.SaveChangesAsync();
+            unreadCounts[chat.Id] = 0;
+        }
+
+        // Includiamo gli allegati nella query per mostrarli
+        currentMessages = await Db.Messages
+            .Include(m => m.Attachments)
+            .Where(m => m.ChatSessionId == chat.Id)
+            .OrderBy(m => m.SentAt)
+            .ToListAsync();
+
+        isLoadingMessages = false;
+        await Scroll();
+    }
+
+    private async Task InviaMessaggioTesto()
+    {
+        if (string.IsNullOrWhiteSpace(newMessageContent) || selectedChat == null || selectedChat.Status == 1) return;
+
+        var msg = new Message
+        {
+            ChatSessionId = selectedChat.Id,
+            SenderId = currentUserId,
+            SenderType = isPatient ? 0 : 1, 
+            Content = newMessageContent.Trim(),
+            SentAt = DateTime.Now,
+            IsRead = false
+        };
+
+        Db.Messages.Add(msg);
+        CreaNotificaNuovoMessaggio();
+
+        await Db.SaveChangesAsync();
+        //Notifier.NotifyNewMessage(selectedChat.Id);
+        currentMessages.Add(msg);
+        newMessageContent = "";
+
+        await Scroll();
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await InviaMessaggioTesto();
+    }
+
+    private async Task ChiudiChat()
+    {
+        if (selectedChat != null && selectedChat.Status == 0)
+        {
+            selectedChat.Status = 1;
+            selectedChat.ClosedAt = DateTime.Now;
+            Db.ChatSessions.Update(selectedChat);
+            await Db.SaveChangesAsync();
+        }
+    }
+
+    // ==========================================
+    // LOGICA DI SICUREZZA E UPLOAD ALLEGATI
+    // ==========================================
+    private async Task GestisciUploadAllegato(ChangeEventArgs e)
+    {
+        errorMessaggio = "";
+        if (selectedChat == null || selectedChat.Status == 1) return;
+
+        // 1. SICUREZZA: Prevenzione IDOR (Assicurati che l'utente faccia parte della chat)
+        if (currentUserId != selectedChat.PatientId && currentUserId != selectedChat.DoctorId)
+        {
+            errorMessaggio = "Errore di sicurezza: accesso negato.";
+            return;
+        }
+
+        try
+        {
+            // Recuperiamo i metadati del file tramite JS
+            var fileName = await JS.InvokeAsync<string>("eval", "document.getElementById('fileAttach').files[0].name");
+            var fileSize = await JS.InvokeAsync<long>("eval", "document.getElementById('fileAttach').files[0].size");
+
+            // 2. SICUREZZA: Validazione Estensione
+            var ext = Path.GetExtension(fileName).ToLower();
+            var estensioniAmmesse = new[] { ".jpg", ".jpeg", ".png", ".pdf" };
+            if (!estensioniAmmesse.Contains(ext))
+            {
+                errorMessaggio = "Formato non supportato. Usa solo JPG, PNG o PDF.";
+                return;
+            }
+
+            // 3. SICUREZZA: Validazione Peso (Max 5 MB)
+            if (fileSize > 5 * 1024 * 1024)
+            {
+                errorMessaggio = "Il file supera il limite di 5 MB.";
+                return;
+            }
+
+            // Invoca la TUA funzione per estrarre la stringa Base64 pura
+            var base64Data = await JS.InvokeAsync<string>("readFileAsBase64", fileAttachRef);
+
+            if (!string.IsNullOrEmpty(base64Data))
+            {
+                // 4. SICUREZZA: Salvataggio fisico sul Server (Non nel DB)
+                var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "PrivateDocs");
+                if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+                
+                // Generiamo un nome univoco per evitare sovrascritture di file omonimi
+                var physicalPath = Path.Combine(folderPath, Guid.NewGuid().ToString() + ext);
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                await File.WriteAllBytesAsync(physicalPath, fileBytes);
+
+                // Creiamo prima il messaggio di testo che fa da "contenitore"
+                var msg = new Message
+                {
+                    ChatSessionId = selectedChat.Id,
+                    SenderId = currentUserId,
+                    SenderType = isPatient ? 0 : 1,
+                    Content = "[Allegato Inviato]",
+                    SentAt = DateTime.Now,
+                    IsRead = false,
+                    Attachments = new List<Attachment>() // Inizializziamo la lista
+                };
+                
+                Db.Messages.Add(msg);
+
+                CreaNotificaNuovoMessaggio();
+
+                await Db.SaveChangesAsync(); // Questo assegna un Id al Message
+
+                // Ora colleghiamo l'allegato
+                var attachment = new Attachment
+                {
+                    MessageId = msg.Id,
+                    FileName = fileName,
+                    FileExtension = ext,
+                    StoragePath = physicalPath // Salviamo solo la rotta, non il Base64 gigante!
+                };
+                
+                Db.Attachments.Add(attachment);
+                await Db.SaveChangesAsync();
+
+                // Aggiorniamo la vista
+                msg.Attachments.Add(attachment);
+                currentMessages.Add(msg);
+                
+                // Resettiamo l'input file tramite JS per permettere di ricaricare lo stesso file
+                await JS.InvokeVoidAsync("eval", "document.getElementById('fileAttach').value = ''");
+
+                await Scroll();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessaggio = "Errore durante il caricamento del file.";
+        }
+    }
+
+    // ==========================================
+    // LOGICA DI DOWNLOAD ALLEGATI
+    // ==========================================
+    private async Task ScaricaAllegato(Attachment att)
+    {
+        // 1. SICUREZZA: Prevenzione IDOR in Lettura
+        if (selectedChat == null || (currentUserId != selectedChat.PatientId && currentUserId != selectedChat.DoctorId)) return;
+
+        if (File.Exists(att.StoragePath))
+        {
+            // Leggiamo il file fisico dal percorso sicuro e lo convertiamo in Base64
+            byte[] fileBytes = await File.ReadAllBytesAsync(att.StoragePath);
+            string base64 = Convert.ToBase64String(fileBytes);
+            
+            // Determiniamo il MIME type corretto
+            string mimeType = "application/octet-stream";
+            if (att.FileExtension == ".pdf") mimeType = "application/pdf";
+            else if (att.FileExtension == ".jpg" || att.FileExtension == ".jpeg") mimeType = "image/jpeg";
+            else if (att.FileExtension == ".png") mimeType = "image/png";
+
+            // Usiamo la TUA funzione per forzare il download nel browser
+            await JS.InvokeVoidAsync("downloadFile", att.FileName, mimeType, base64);
+        }
+    }
+
+    private async Task GestisciNuovaChat()
+    {
+        if (!isPatient)
+        {
+            NavManager.NavigateTo("/agenda");
+        }
+        else
+        {
+            preferitiPaziente = await Db.FavoriteDoctors
+                .Where(fd => fd.PatientId == currentUserId)
+                .Include(fd => fd.Doctor)
+                .Select(fd => fd.Doctor)
+                .ToListAsync();
+            
+            showNewChatModal = true;
+        }
+    }
+
+    private void ChiudiModalChat()
+    {
+        showNewChatModal = false;
+    }
+
+    private async Task AvviaNuovaChat(int doctorId)
+    {
+        var chatEsistente = await Db.ChatSessions
+            .FirstOrDefaultAsync(c => c.PatientId == currentUserId && c.DoctorId == doctorId && c.Status == 0 && c.AppointmentId == null);
+        
+
+        if (chatEsistente != null)
+        {
+            showNewChatModal = false;
+            await SelezionaChat(chatEsistente);
+            return;
+        }
+
+        var nuovaChat = new ChatSession
+        {
+            PatientId = currentUserId,
+            DoctorId = doctorId,
+            AppointmentId = null,
+            Status = 0,
+            CreatedAt = DateTime.Now
+        };
+
+        Db.ChatSessions.Add(nuovaChat);
+        await Db.SaveChangesAsync();
+
+        var query = Db.ChatSessions
+            .Include(c => c.Patient)
+            .Include(c => c.Doctor)
+            .AsQueryable();
+        myChats = await query
+            .Where(c => c.PatientId == currentUserId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+        
+        showNewChatModal = false;
+
+        var chatFresca = myChats
+            .FirstOrDefault(c => c.Id == nuovaChat.Id);
+        
+        if (chatFresca != null)
+        {
+            await SelezionaChat(chatFresca);
+        }
+    }
+
+    private void CreaNotificaNuovoMessaggio()
+    {
+        if (selectedChat == null) return;
+
+        string recipientIdentityId = isPatient ? selectedChat.Doctor.IdentityUserId : selectedChat.Patient.IdentityUserId;
+
+        var notifica = new Notification
+        {
+            IdentityUserId = recipientIdentityId,
+            Title = "Hai un nuovo messaggio",
+            Message = "Controlla la sezione Messaggi.",
+            CreatedAt = DateTime.Now,
+            IsRead = false,
+            TargetUrl = "/chat"
+        };
+
+        Db.Notifications.Add(notifica);
+    }
+
+    private async Task Scroll()
+    {
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("eval", "var el = document.getElementById('chatContainer'); if(el) el.scrollTop = el.scrollHeight;");
+    }
+
+    /*
+    private async void HandleNewMessage(int chatId)
+    {
+        if (myChats.Any(c => c.Id == chatId))
+        {
+            await InvokeAsync(async () =>
+            {
+                var chatIds = myChats.Select(c => c.Id).ToList();
+                int mySenderType = isPatient ? 0 : 1;
+                var unreadData = await Db.Messages
+                    .Where(m => chatIds.Contains(m.ChatSessionId) && m.SenderType != mySenderType && !m.IsRead)
+                    .GroupBy(m => m.ChatSessionId)
+                    .Select(g => new {ChatId = g.Key, Count = g.Count()})
+                    .ToListAsync();
+                
+                unreadCounts = chatIds.ToDictionary(id => id, id => 0);
+                foreach (var item in unreadData) unreadCounts[item.ChatId] = item.Count;
+
+                if (selectedChat != null && selectedChat.Id == chatId)
+                {
+                    currentMessages = await Db.Messages
+                        .Include(m => m.Attachments)
+                        .Where(m => m.ChatSessionId == chatId)
+                        .OrderBy(m => m.SentAt)
+                        .ToListAsync();
+                    
+                    await Scroll();
+
+                    var messaggiDaLeggere = currentMessages
+                        .Where(m => m.SenderType != mySenderType && !m.IsRead)
+                        .ToList();
+                    
+                    if (messaggiDaLeggere.Any())
+                    {
+                        foreach (var m in messaggiDaLeggere) m.IsRead = true;
+                        await Db.SaveChangesAsync();
+                        unreadCounts[chatId] = 0;
+                    }
+                }
+
+                StateHasChanged();
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        Notifier.OnMessageReceived -= HandleNewMessage;
+    }
+    */
+}

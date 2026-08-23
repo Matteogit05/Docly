@@ -31,6 +31,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<BookingService>();
+// builder.Services.AddSingleton<ChatNotifierService>();
 
 var app = builder.Build();
 

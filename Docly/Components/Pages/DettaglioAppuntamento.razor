@@ -179,10 +179,37 @@
         isLoading = false;
     }
 
-    private void OpenChat()
+    private async Task OpenChat()
     {
-        // Logica per creare/aprire la sessione di chat
-        // NavManager.NavigateTo($"/chat/appointment/{AppointmentId}");
+        if (appointment == null) return;
+
+        var chatEsistente = await Db.ChatSessions
+            .FirstOrDefaultAsync(c => c.AppointmentId == appointment.Id);
+        
+        int chatIdDaAprire;
+
+        if (chatEsistente != null)
+        {
+            chatIdDaAprire = chatEsistente.Id;
+        }
+        else
+        {
+            var nuovaChat = new ChatSession
+            {
+                PatientId = appointment.PatientId,
+                DoctorId = appointment.DoctorId,
+                AppointmentId = appointment.Id,
+                Status = 0,
+                CreatedAt = DateTime.Now
+            };
+
+            Db.ChatSessions.Add(nuovaChat);
+            await Db.SaveChangesAsync();
+
+            chatIdDaAprire = nuovaChat.Id;
+        }
+
+        NavManager.NavigateTo($"/chat?chatId={chatIdDaAprire}");
     }
 
     private async Task CancelAppointment()

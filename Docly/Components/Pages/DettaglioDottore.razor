@@ -324,9 +324,39 @@
             isBooking = false;
         }
     }
-    private void OpenChat()
+    private async Task OpenChat()
     {
-        // Naviga verso la futura pagina della chat per il medico specifico
-        // NavManager.NavigateTo($"/chat/{DoctorId}");
+        if (currentPatientId == null) return;
+
+        var chatEsistente = await Db.ChatSessions
+            .FirstOrDefaultAsync(c => c.PatientId == currentPatientId.Value
+                                    && c.DoctorId == DoctorId
+                                    && c.Status == 0
+                                    && c.AppointmentId == null);
+        
+        int chatIdDaAprire;
+
+        if (chatEsistente != null)
+        {
+            chatIdDaAprire = chatEsistente.Id;
+        }
+        else
+        {
+            var nuovaChat = new ChatSession
+            {
+                PatientId = currentPatientId.Value,
+                DoctorId = DoctorId,
+                AppointmentId = null,
+                Status = 0,
+                CreatedAt = DateTime.Now
+            };
+
+            Db.ChatSessions.Add(nuovaChat);
+            await Db.SaveChangesAsync();
+
+            chatIdDaAprire = nuovaChat.Id;
+        }
+
+        NavManager.NavigateTo($"chat?chatId={chatIdDaAprire}");
     }
 }
