@@ -8,6 +8,7 @@
 @inject ApplicationDbContext DbContext
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Registrazione - Docly</PageTitle>
 
@@ -105,6 +106,30 @@
     </div>
 </div>
 
+<script>
+    window.eseguiAutoLogin = (email, password) => {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = '/api/autologin';
+        form.style.display = 'none';
+        
+        const emailInput = document.createElement('input');
+        emailInput.type = 'hidden';
+        emailInput.name = 'email';
+        emailInput.value = email;
+        form.appendChild(emailInput);
+        
+        const passwordInput = document.createElement('input');
+        passwordInput.type = 'hidden';
+        passwordInput.name = 'password';
+        passwordInput.value = password;
+        form.appendChild(passwordInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    };
+</script>
+
 @code {
     private RegisterViewModel model = new() { DateOfBirth = new DateTime(1990, 1, 1) };
     private string? errorMessage;
@@ -159,7 +184,7 @@
 
         await DbContext.SaveChangesAsync();
 
-        Navigation.NavigateTo("/?registered=true");
+        await JS.InvokeVoidAsync("window.eseguiAutoLogin", model.Email, model.Password);
     }
 
     public class RegisterViewModel

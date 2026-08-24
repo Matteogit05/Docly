@@ -89,4 +89,20 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+app.MapPost("/api/autologin", async (
+    [FromForm] string email, 
+    [FromForm] string password, 
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    // Eseguiamo il login effettivo che imposta il Cookie
+    var result = await signInManager.PasswordSignInAsync(email, password, isPersistent: false, lockoutOnFailure: false);
+    
+    if (result.Succeeded)
+    {
+        return Results.Redirect("/home");
+    }
+    
+    return Results.Redirect("/register");
+}).DisableAntiforgery(); // Disabilitato perché il form è generato internamente e al volo
+
 app.Run();
