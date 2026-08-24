@@ -18,7 +18,6 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=docly.db"));
 
-// 1. CONFIGURAZIONE IDENTITY E RUOLI
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireDigit = true;
@@ -39,10 +38,8 @@ builder.Services.AddScoped<BookingService>();
 
 var app = builder.Build();
 
-// 2. MODIFICA DEL SEEDER PER PASSARE IL SERVICE PROVIDER
 using (var scope = app.Services.CreateScope())
 {
-    // Passiamo l'intero ServiceProvider al Seeder per potergli far usare RoleManager e UserManager
     await DbSeeder.SeedAsync(scope.ServiceProvider);
 }
 
@@ -53,14 +50,12 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles(); // Importante per CSS/JS
+app.UseStaticFiles();
 app.UseAntiforgery();
 
-// 3. MIDDLEWARE DI AUTENTICAZIONE E AUTORIZZAZIONE
 app.UseAuthentication();
 app.UseAuthorization();
 
-// 4. ENDPOINT INVISIBILE PER IL LOGIN (Aggira il limite di Blazor Server sui cookie)
 app.MapPost("/api/auth/login", async (
     HttpContext context, 
     SignInManager<ApplicationUser> signInManager, 
@@ -72,7 +67,6 @@ app.MapPost("/api/auth/login", async (
     
     if (result.Succeeded)
     {
-        // Se il login ha successo, andiamo sempre alla Home!
         return Results.Redirect("/");
     }
 
@@ -94,7 +88,6 @@ app.MapPost("/api/autologin", async (
     [FromForm] string password, 
     SignInManager<ApplicationUser> signInManager) =>
 {
-    // Eseguiamo il login effettivo che imposta il Cookie
     var result = await signInManager.PasswordSignInAsync(email, password, isPersistent: false, lockoutOnFailure: false);
     
     if (result.Succeeded)
@@ -103,6 +96,6 @@ app.MapPost("/api/autologin", async (
     }
     
     return Results.Redirect("/register");
-}).DisableAntiforgery(); // Disabilitato perché il form è generato internamente e al volo
+}).DisableAntiforgery();
 
 app.Run();
