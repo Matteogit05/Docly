@@ -56,7 +56,6 @@
 
     protected override void OnParametersSet()
     {
-        // Mappiamo i dati dall'Entity al ViewModel se il form è vuoto
         if (CurrentDoctor != null && string.IsNullOrEmpty(model.FirstName))
         {
             model.FirstName = CurrentDoctor.FirstName;
@@ -68,17 +67,14 @@
 
     private async Task HandleValidSubmit()
     {
-        // Mappiamo i dati dal ViewModel indietro all'Entity
         CurrentDoctor.FirstName = model.FirstName;
         CurrentDoctor.LastName = model.LastName;
         CurrentDoctor.Specialization = model.Specialization;
         CurrentDoctor.Bio = model.Bio;
 
-        // Informiamo il componente genitore che i dati sono pronti per essere salvati
         await OnSave.InvokeAsync(CurrentDoctor);
     }
 
-    // Il ViewModel interno per la validazione
     public class DottoreViewModel
     {
         [Required(ErrorMessage = "Il nome è obbligatorio.")]

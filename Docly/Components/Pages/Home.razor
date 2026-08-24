@@ -25,10 +25,17 @@
 
     <AuthorizeView Roles="Doctor">
         <Authorized>
-            <div class="row">
+            <div class="row my-4">
                 <div class="col-12">
-                    <h2 class="text-success"><i class="bi bi-heart-pulse"></i> Area Medico</h2>
-                    <p>Qui puoi visualizzare i tuoi appuntamenti, le disponibilità e i pazienti.</p>
+                    @if (currentDoctor != null)
+                    {
+                        <h1 class="display-3 fw-bold text-dark mb-3">Benvenuto, @currentDoctor.FirstName</h1>
+                    }
+                    else
+                    {
+                        <h1 class="display-3 fw-bold text-dark mb-3">Benvenuto</h1>
+                    }
+                    <h3 class="text-secondary fw-normal">Visualizza i tuoi appuntamenti, le disponibilità e i pazienti.</h3>
                 </div>
             </div>
         </Authorized>
@@ -43,7 +50,6 @@
                 </div>
             </div>
 
-            <!-- SEZIONE: I MIEI DOTTORI (PREFERITI) -->
             <div class="row mb-2">
                 <div class="col-12">
                     <h4 class="text-secondary"><i class="bi bi-star-fill text-warning"></i> I miei Dottori</h4>
@@ -74,14 +80,12 @@
                 }
             </div>
 
-            <!-- SEZIONE: RICERCA GLOBALE -->
             <div class="row mb-2">
                 <div class="col-12">
                     <h4 class="text-secondary"><i class="bi bi-search"></i> Trova uno Specialista</h4>
                 </div>
             </div>
 
-            <!-- Barra di Ricerca con Form per il tasto INVIO -->
             <div class="row mb-4">
                 <div class="col-md-8 col-lg-6">
                     <form @onsubmit="SearchDoctors">
@@ -95,11 +99,9 @@
                 </div>
             </div>
 
-            <!-- Griglia dei Risultati di Ricerca -->
             <div class="row g-4 mb-4">
                 @if (searchResults == null)
                 {
-                    <!-- Nessuna ricerca ancora effettuata -->
                 }
                 else if (!searchResults.Any())
                 {
@@ -129,40 +131,43 @@
 @code {
     private string searchTerm = "";
     
-    // Lista per la ricerca globale
     private List<Doctor>? searchResults = null; 
     
-    // Lista per i medici preferiti dell'utente
     private List<Doctor> favoriteDoctors = new();
     
     private int? currentPatientId;
+    private Doctor? currentDoctor;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Identifica l'utente loggato
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        if (user.Identity?.IsAuthenticated == true && user.IsInRole("Patient"))
+        if (user.Identity?.IsAuthenticated == true)
         {
             var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             if (identityUserId != null)
             {
-                // 2. Trova il Paziente collegato per prenderne l'ID
-                var patient = await Db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
-                
-                if (patient != null)
+                if (user.IsInRole("Patient"))
                 {
-                    currentPatientId = patient.Id;
+                    var patient = await Db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
                     
-                    // 3. Carica INTERAMENTE i medici preferiti (usando Include per prendere i dati di Doctors)
-                    favoriteDoctors = await Db.FavoriteDoctors
-                        .AsNoTracking()
-                        .Include(f => f.Doctor)
-                        .Where(f => f.PatientId == currentPatientId && f.Doctor.IsActive)
-                        .Select(f => f.Doctor)
-                        .ToListAsync();
+                    if (patient != null)
+                    {
+                        currentPatientId = patient.Id;
+                        
+                        favoriteDoctors = await Db.FavoriteDoctors
+                            .AsNoTracking()
+                            .Include(f => f.Doctor)
+                            .Where(f => f.PatientId == currentPatientId && f.Doctor.IsActive)
+                            .Select(f => f.Doctor)
+                            .ToListAsync();
+                    }
+                }
+                else if (user.IsInRole("Doctor"))
+                {
+                    currentDoctor = await Db.Doctors.AsNoTracking().FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
                 }
             }
         }
@@ -172,7 +177,6 @@
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            // Se la ricerca è vuota, carichiamo tutti i medici
             searchResults = await Db.Doctors
                 .AsNoTracking()
                 .Where(d => d.IsActive)
@@ -180,7 +184,6 @@
         }
         else
         {
-            // Usiamo EF.Functions.Like per una ricerca non case-sensitive affidabile in SQLite
             var term = $"%{searchTerm}%";
             searchResults = await Db.Doctors
                 .AsNoTracking()

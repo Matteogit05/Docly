@@ -55,8 +55,6 @@
 
     protected override void OnParametersSet()
     {
-        // Se il parametro è stato passato e il ViewModel non è ancora inizializzato (o vogliamo forzare un reset)
-        // Mappiamo i dati dall'Entity al ViewModel
         if (CurrentPatient != null && string.IsNullOrEmpty(model.FirstName))
         {
             model.FirstName = CurrentPatient.FirstName;
@@ -68,17 +66,15 @@
 
     private async Task HandleValidSubmit()
     {
-        // Mappiamo i dati dal ViewModel indietro all'Entity
+
         CurrentPatient.FirstName = model.FirstName;
         CurrentPatient.LastName = model.LastName;
         CurrentPatient.DateOfBirth = model.DateOfBirth;
-        CurrentPatient.TaxId = model.TaxId.ToUpper(); // Forza l'uppercase per sicurezza
+        CurrentPatient.TaxId = model.TaxId.ToUpper();
 
-        // Informiamo il componente genitore (Me.razor) che i dati sono pronti per essere salvati
         await OnSave.InvokeAsync(CurrentPatient);
     }
 
-    // Il ViewModel interno per la validazione
     public class PazienteViewModel
     {
         [Required(ErrorMessage = "Il nome è obbligatorio.")]

@@ -13,7 +13,7 @@ public static class DbSeeder
         await db.Database.EnsureCreatedAsync(); // Assicurati che il db esista
         await SeedRolesAndAdminAsync(roleManager, userManager, configuration);
 
-        await SeedApplicationUsersAsync(db);
+        await SeedApplicationUsersAsync(userManager);
         await SeedDoctorsAsync(db);
         await SeedPatientsAsync(db);
         /*
@@ -24,7 +24,6 @@ public static class DbSeeder
 
     private static async Task SeedRolesAndAdminAsync(RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager, IConfiguration configuration)
     {
-        // 1. Creiamo i ruoli se non esistono
         string[] roleNames = { "Admin", "Doctor", "Patient" };
         foreach (var roleName in roleNames)
         {
@@ -34,8 +33,6 @@ public static class DbSeeder
             }
         }
 
-        // 2. Creiamo l'utente Admin leggendo da appsettings.json
-        // Se l'email non c'è, usa il default. Se la password non c'è, è meglio lanciare un'eccezione.
         string adminEmail = configuration["AdminSettings:Email"] ?? "admin@docly.it";
         string adminPassword = configuration["AdminSettings:Password"];
 
@@ -53,7 +50,6 @@ public static class DbSeeder
                 EmailConfirmed = true
             };
 
-            // INSERISCI LA PASSWORD LETTA DALLA CONFIGURAZIONE
             var result = await userManager.CreateAsync(adminUser, adminPassword); 
             if (result.Succeeded)
             {
@@ -61,120 +57,42 @@ public static class DbSeeder
             }
         }
     }
-    private static async Task SeedApplicationUsersAsync(ApplicationDbContext db)
+    private static async Task SeedApplicationUsersAsync(UserManager<ApplicationUser> userManager)
     {
-        var passwordHasher = new PasswordHasher<ApplicationUser>();
-
         var seedUsers = new[]
         {
-            new ApplicationUser
-            {
-                Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1001",
-                UserName = "doctor1@docly.test",
-                NormalizedUserName = "DOCTOR1@DOCLY.TEST",
-                Email = "doctor1@docly.test",
-                NormalizedEmail = "DOCTOR1@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1002",
-                UserName = "doctor2@docly.test",
-                NormalizedUserName = "DOCTOR2@DOCLY.TEST",
-                Email = "doctor2@docly.test",
-                NormalizedEmail = "DOCTOR2@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1003",
-                UserName = "doctor3@docly.test",
-                NormalizedUserName = "DOCTOR3@DOCLY.TEST",
-                Email = "doctor3@docly.test",
-                NormalizedEmail = "DOCTOR3@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1004",
-                UserName = "doctor4@docly.test",
-                NormalizedUserName = "DOCTOR4@DOCLY.TEST",
-                Email = "doctor4@docly.test",
-                NormalizedEmail = "DOCTOR4@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1005",
-                UserName = "doctor5@docly.test",
-                NormalizedUserName = "DOCTOR5@DOCLY.TEST",
-                Email = "doctor5@docly.test",
-                NormalizedEmail = "DOCTOR5@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2001",
-                UserName = "patient1@docly.test",
-                NormalizedUserName = "PATIENT1@DOCLY.TEST",
-                Email = "patient1@docly.test",
-                NormalizedEmail = "PATIENT1@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2002",
-                UserName = "patient2@docly.test",
-                NormalizedUserName = "PATIENT2@DOCLY.TEST",
-                Email = "patient2@docly.test",
-                NormalizedEmail = "PATIENT2@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2003",
-                UserName = "patient3@docly.test",
-                NormalizedUserName = "PATIENT3@DOCLY.TEST",
-                Email = "patient3@docly.test",
-                NormalizedEmail = "PATIENT3@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2004",
-                UserName = "patient4@docly.test",
-                NormalizedUserName = "PATIENT4@DOCLY.TEST",
-                Email = "patient4@docly.test",
-                NormalizedEmail = "PATIENT4@DOCLY.TEST",
-                EmailConfirmed = true
-            },
-            new ApplicationUser
-            {
-                Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2005",
-                UserName = "patient5@docly.test",
-                NormalizedUserName = "PATIENT5@DOCLY.TEST",
-                Email = "patient5@docly.test",
-                NormalizedEmail = "PATIENT5@DOCLY.TEST",
-                EmailConfirmed = true
-            }
+            new ApplicationUser { Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1001", UserName = "doctor1@docly.test", Email = "doctor1@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1002", UserName = "doctor2@docly.test", Email = "doctor2@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1003", UserName = "doctor3@docly.test", Email = "doctor3@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1004", UserName = "doctor4@docly.test", Email = "doctor4@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "2d9a8d58-2ec7-4e02-bd5f-7b1d8b7c1005", UserName = "doctor5@docly.test", Email = "doctor5@docly.test", EmailConfirmed = true },
+            
+            new ApplicationUser { Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2001", UserName = "patient1@docly.test", Email = "patient1@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2002", UserName = "patient2@docly.test", Email = "patient2@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2003", UserName = "patient3@docly.test", Email = "patient3@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2004", UserName = "patient4@docly.test", Email = "patient4@docly.test", EmailConfirmed = true },
+            new ApplicationUser { Id = "8fa65a79-1f0d-4f1e-86a7-8d7b5a2a2005", UserName = "patient5@docly.test", Email = "patient5@docly.test", EmailConfirmed = true }
         };
 
-        var existingUserIds = await db.ApplicationUsers
-            .Select(user => user.Id)
-            .ToHashSetAsync();
-
-        foreach (var seedUser in seedUsers)
+        foreach (var user in seedUsers)
         {
-            if (existingUserIds.Contains(seedUser.Id))
+            if (await userManager.FindByIdAsync(user.Id) == null)
             {
-                continue;
+                var result = await userManager.CreateAsync(user, "Password123!");
+                
+                if (result.Succeeded)
+                {
+                    if (user.Email.Contains("doctor"))
+                    {
+                        await userManager.AddToRoleAsync(user, "Doctor");
+                    }
+                    else if (user.Email.Contains("patient"))
+                    {
+                        await userManager.AddToRoleAsync(user, "Patient");
+                    }
+                }
             }
-
-            seedUser.PasswordHash = passwordHasher.HashPassword(seedUser, "Password123!");
-            db.ApplicationUsers.Add(seedUser);
         }
-
-        await db.SaveChangesAsync();
     }
 
     private static async Task SeedDoctorsAsync(ApplicationDbContext db)

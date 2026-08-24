@@ -8,13 +8,11 @@
         
         <div class="row g-4 mb-3">
             
-            <!-- SEZIONE MATTINA -->
             <div class="col-12">
                 <h6 class="fw-bold text-primary mb-3"><i class="bi bi-brightness-alt-high me-2"></i> Turno Mattina</h6>
                 <div class="row g-3 bg-light p-3 rounded-3 border">
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Ora di Inizio</label>
-                        <!-- Usiamo InputText che fa il bind perfetto con le stringhe degli input "time" -->
                         <InputText type="time" class="form-control" @bind-Value="model.MattinaInizio" />
                         <ValidationMessage For="@(() => model.MattinaInizio)" class="text-danger small" />
                     </div>
@@ -27,7 +25,6 @@
                 </div>
             </div>
 
-            <!-- SEZIONE POMERIGGIO -->
             <div class="col-12">
                 <h6 class="fw-bold text-primary mb-3"><i class="bi bi-brightness-high-fill me-2"></i> Turno Pomeriggio</h6>
                 <div class="row g-3 bg-light p-3 rounded-3 border">
@@ -74,8 +71,6 @@
     private DisponibilitaViewModel model = new();
     private string? customError;
 
-    // Usiamo OnInitialized al posto di OnParametersSet per evitare che i dati inseriti dall'utente 
-    // vengano sovrascritti se la pagina si ridisegna a causa di un errore.
     protected override void OnInitialized()
     {
         if (CurrentSchedules != null && CurrentSchedules.Any())
@@ -85,7 +80,6 @@
                 .OrderBy(s => s.StartTime)
                 .ToList();
             
-            // Formattiamo i TimeSpan in formato stringa per farli leggere al form
             if (mondaySchedules.Count >= 1)
             {
                 model.MattinaInizio = mondaySchedules[0].StartTime.ToString(@"hh\:mm");
@@ -104,7 +98,6 @@
     {
         customError = null;
 
-        // Convertiamo le stringhe sicure in TimeSpan per fare le logiche matematiche
         var matIni = TimeSpan.Parse(model.MattinaInizio!);
         var matFin = TimeSpan.Parse(model.MattinaFine!);
         var pomIni = TimeSpan.Parse(model.PomeriggioInizio!);
@@ -131,7 +124,6 @@
 
     public class DisponibilitaViewModel
     {
-        // Proprietà convertite in string per il binding HTML5 perfetto
         [Required(ErrorMessage = "Inizio mattina richiesto.")]
         public string? MattinaInizio { get; set; }
 

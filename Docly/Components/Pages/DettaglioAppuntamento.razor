@@ -35,7 +35,6 @@
                 <div class="card shadow-sm border-0 rounded-4">
                     <div class="card-body p-5">
                         
-                        <!-- Intestazione -->
                         <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
                             @if (isDoctor)
                             {
@@ -59,7 +58,6 @@
                             }
                         </div>
 
-                        <!-- Dettagli Appuntamento -->
                         <h5 class="fw-bold mb-3"><i class="bi bi-info-square-fill text-primary me-2"></i> Dettagli Visita</h5>
                         
                         <div class="row mb-4 bg-light p-3 rounded-3 border">
@@ -73,7 +71,6 @@
                             </div>
                         </div>
 
-                        <!-- Note Sintomi -->
                         @if (!string.IsNullOrWhiteSpace(appointment.SymptomNotes))
                         {
                             <div class="mb-5">
@@ -91,7 +88,6 @@
                             </div>
                         }
 
-                        <!-- Pulsanti d'Azione -->
                         <div class="d-flex gap-3 flex-wrap mt-4 border-top pt-4">
                             <button class="btn btn-primary px-4 py-2 fw-bold d-flex align-items-center" @onclick="OpenChat">
                                 <i class="bi bi-chat-dots-fill me-2 fs-5"></i> Apri Chat
@@ -135,7 +131,7 @@
     private Appointment? appointment;
     private bool isLoading = true;
     private bool isDoctor = false;
-    private bool isCancelling = false; // Aggiunto flag per l'interfaccia
+    private bool isCancelling = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -150,13 +146,11 @@
             {
                 isDoctor = user.IsInRole("Doctor");
 
-                // Carica l'appuntamento includendo Doctor e Patient per i dettagli
                 var query = Db.Appointments
                     .Include(a => a.Doctor)
                     .Include(a => a.Patient)
                     .AsQueryable();
 
-                // Sicurezza: un utente può vedere solo i suoi appuntamenti
                 if (isDoctor)
                 {
                     var doctor = await Db.Doctors.AsNoTracking().FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
@@ -218,10 +212,8 @@
         {
             isCancelling = true;
             
-            // 1. Cambia lo stato in Annullato (2)
             appointment.Status = 2; 
 
-            // 2. Crea la notifica
             var notification = new Notification
             {
                 Title = "Appuntamento Annullato",
@@ -230,21 +222,17 @@
                 TargetUrl = $"/appointment/{appointment.Id}"
             };
 
-            // Determiniamo chi sta annullando e formattiamo il messaggio per il destinatario
             if (isDoctor)
             {
-                // Il medico annulla, la notifica va al paziente
                 notification.IdentityUserId = appointment.Patient.IdentityUserId;
                 notification.Message = $"La tua visita del {appointment.StartTime.ToString("dd/MM/yyyy alle HH:mm")} con il Dr. {appointment.Doctor.LastName} è stata annullata.";
             }
             else
             {
-                // Il paziente annulla, la notifica va al medico
                 notification.IdentityUserId = appointment.Doctor.IdentityUserId;
                 notification.Message = $"L'appuntamento del {appointment.StartTime.ToString("dd/MM/yyyy alle HH:mm")} con il paziente {appointment.Patient.FirstName} {appointment.Patient.LastName} è stato annullato.";
             }
 
-            // 3. Salva nel DB
             Db.Notifications.Add(notification);
             await Db.SaveChangesAsync();
             

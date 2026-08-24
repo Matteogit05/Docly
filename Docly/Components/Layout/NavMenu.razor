@@ -13,7 +13,6 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column mt-2">
         
-        <!-- VISIBILE A TUTTI -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="home" Match="NavLinkMatch.All">
                 <i class="bi bi-house-door-fill me-3 text-white fs-5" aria-hidden="true"></i> 
@@ -21,7 +20,6 @@
             </NavLink>
         </div>
 
-        <!-- VISIBILE SOLO AI PAZIENTI -->
         <AuthorizeView Roles="Patient">
             <Authorized>
                 <div class="nav-item px-3">
@@ -45,7 +43,6 @@
             </Authorized>
         </AuthorizeView>
 
-        <!-- VISIBILE SOLO AI MEDICI -->
         <AuthorizeView Roles="Doctor">
             <Authorized>
                 <div class="nav-item px-3">
@@ -68,8 +65,7 @@
                 </div>
             </Authorized>
         </AuthorizeView>
-        
-        <!-- VISIBILE SOLO AGLI ADMIN -->
+
         <AuthorizeView Roles="Admin">
             <Authorized>
                 <div class="nav-item px-3">

@@ -16,18 +16,14 @@
     </div>
 
     <main>
-        <!-- BARRA SUPERIORE -->
         <div class="top-row px-4 shadow-sm bg-light d-flex justify-content-between align-items-center">
             <div class="fw-bold text-primary">Docly App</div>
             
             <AuthorizeView>
                 <Authorized>
                     <div class="d-flex align-items-center">
-                        
-                        <!-- ICONA NOTIFICHE E MENU A TENDINA -->
                         <div class="dropdown me-4 position-relative">
                             
-                            <!-- Campanella -->
                             <button class="btn btn-link text-dark p-0 position-relative" @onclick="ToggleNotifications" style="text-decoration: none;">
                                 <i class="bi bi-bell-fill fs-5"></i>
                                 @if (unreadCount > 0)
@@ -38,12 +34,10 @@
                                 }
                             </button>
 
-                            <!-- Tendina Notifiche -->
                             @if (showNotifications)
                             {
                                 <div class="dropdown-menu dropdown-menu-end show shadow-lg p-0" style="position: absolute; right: -10px; top: 120%; min-width: 320px; z-index: 1050; border-radius: 0.75rem; overflow: hidden;">
                                     
-                                    <!-- Header Tendina -->
                                     <div class="dropdown-header bg-light border-bottom fw-bold d-flex justify-content-between align-items-center p-3">
                                         <span class="text-dark fs-6">Notifiche</span>
                                         @if(unreadCount > 0)
@@ -52,7 +46,6 @@
                                         }
                                     </div>
 
-                                    <!-- Lista Notifiche -->
                                     <div style="max-height: 350px; overflow-y: auto;">
                                         @if (!notifications.Any())
                                         {
@@ -81,7 +74,6 @@
                                 </div>
                             }
 
-                            <!-- Sfondo invisibile per chiudere la tendina cliccando fuori -->
                             @if (showNotifications)
                             {
                                 <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;" @onclick="() => showNotifications = false"></div>
@@ -93,7 +85,6 @@
                             <span class="badge bg-secondary ms-1">@GetRole(context)</span>
                         </span>
                         
-                        <!-- FORM DI LOGOUT -->
                         <form action="/api/auth/logout" method="post" class="m-0">
                             <AntiforgeryToken />
                             <button type="submit" class="btn btn-sm btn-outline-danger">Esci</button>
@@ -108,8 +99,6 @@
                 </NotAuthorized>
             </AuthorizeView>
         </div>
-
-        <!-- CONTENUTO DELLE PAGINE -->
         <article class="content px-4 py-4">
             @Body
         </article>
@@ -141,7 +130,6 @@
     {
         if (string.IsNullOrEmpty(currentUserId)) return;
 
-        // Carica le ultime 15 notifiche dell'utente
         notifications = await Db.Notifications
             .Where(n => n.IdentityUserId == currentUserId)
             .OrderByDescending(n => n.CreatedAt)
@@ -156,7 +144,6 @@
 
     private async Task ReadAndNavigate(Notification n)
     {
-        // Se non è letta, la aggiorniamo nel DB
         if (!n.IsRead)
         {
             n.IsRead = true;
@@ -167,7 +154,6 @@
         // Chiudi la tendina
         showNotifications = false;
 
-        // Naviga verso l'appuntamento (se l'URL è presente)
         if (!string.IsNullOrEmpty(n.TargetUrl))
         {
             NavManager.NavigateTo(n.TargetUrl);

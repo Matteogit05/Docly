@@ -54,7 +54,6 @@
 
     protected override void OnInitialized()
     {
-        // Impostiamo valori di default sensati: da domani per una settimana
         model.StartDate = DateTime.Today.AddDays(1);
         model.EndDate = DateTime.Today.AddDays(8);
     }
@@ -63,14 +62,12 @@
     {
         customError = null;
 
-        // Validazione logica: la data di fine non può essere precedente a quella di inizio
         if (model.EndDate < model.StartDate)
         {
             customError = "La data di fine assenza non può essere precedente alla data di inizio.";
             return;
         }
 
-        // Se tutto ok, passiamo i dati al genitore
         await OnSave.InvokeAsync(model);
     }
 

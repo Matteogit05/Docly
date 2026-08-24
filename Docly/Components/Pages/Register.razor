@@ -111,7 +111,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Se sei già loggato, non puoi registrarti, ti rimando alla home
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
@@ -123,7 +122,6 @@
     {
         errorMessage = null;
 
-        // 1. Creazione dell'utente Identity
         var user = new ApplicationUser { UserName = model.Email, Email = model.Email, EmailConfirmed = true };
         var result = await UserManager.CreateAsync(user, model.Password);
 
@@ -133,15 +131,13 @@
             return;
         }
 
-        // 2. Assegnazione del Ruolo
         await UserManager.AddToRoleAsync(user, model.Ruolo);
 
-        // 3. Creazione del record nella tabella specifica (Patient o Doctor)
         if (model.Ruolo == "Patient")
         {
             DbContext.Patients.Add(new Patient
             {
-                IdentityUserId = user.Id, // Il collegamento vitale!
+                IdentityUserId = user.Id,
                 FirstName = model.Nome,
                 LastName = model.Cognome,
                 TaxId = model.TaxId.ToUpper(),
@@ -152,18 +148,17 @@
         {
             DbContext.Doctors.Add(new Doctor
             {
-                IdentityUserId = user.Id, // Il collegamento vitale!
+                IdentityUserId = user.Id,
                 FirstName = model.Nome,
                 LastName = model.Cognome,
                 Specialization = model.Specialization,
-                Bio = model.Bio, // Inserimento della Bio nel database!
+                Bio = model.Bio,
                 IsActive = true
             });
         }
 
         await DbContext.SaveChangesAsync();
 
-        // 4. Se tutto è andato bene, rimandiamo al login con successo
         Navigation.NavigateTo("/?registered=true");
     }
 
@@ -185,11 +180,9 @@
         [MinLength(6, ErrorMessage = "Minimo 6 caratteri.")]
         public string Password { get; set; } = string.Empty;
 
-        // Campi condizionali Paziente
         public string TaxId { get; set; } = string.Empty;
         public DateTime DateOfBirth { get; set; }
         
-        // Campi condizionali Medico
         public string Specialization { get; set; } = string.Empty;
         public string Bio { get; set; } = string.Empty;
     }

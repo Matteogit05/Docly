@@ -17,9 +17,6 @@
     <div class="card shadow border-0 rounded-4 overflow-hidden" style="height: 75vh;">
         <div class="row g-0 h-100">
             
-            <!-- ========================================== -->
-            <!-- COLONNA SINISTRA: LISTA CHAT (SIDEBAR)     -->
-            <!-- ========================================== -->
             <div class="col-md-4 border-end bg-light h-100 d-flex flex-column">
                 
                 <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center shadow-sm">
@@ -77,9 +74,6 @@
                 </div>
             </div>
 
-            <!-- ========================================== -->
-            <!-- COLONNA DESTRA: AREA MESSAGGI ATTIVA       -->
-            <!-- ========================================== -->
             <div class="col-md-8 bg-white h-100 d-flex flex-column position-relative">
                 
                 @if (selectedChat == null)
@@ -94,7 +88,6 @@
                 }
                 else
                 {
-                    <!-- Header della Chat -->
                     <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center shadow-sm">
                         <div class="d-flex align-items-center">
                             <div class="bg-secondary bg-opacity-10 rounded-circle d-flex justify-content-center align-items-center text-secondary me-3" style="width: 45px; height: 45px;">
@@ -122,7 +115,6 @@
                         </div>
                     </div>
 
-                    <!-- Area Cronologia Messaggi -->
                     <div id="chatContainer" class="flex-grow-1 p-4 overflow-auto custom-scrollbar" style="background-color: #e5ddd5;">
                         @if (isLoadingMessages)
                         {
@@ -143,10 +135,8 @@
                                 <div class="d-flex mb-3 @(isMine ? "justify-content-end" : "justify-content-start")">
                                     <div class="p-2 px-3 shadow-sm position-relative @(isMine ? "message-mine" : "message-other")" style="max-width: 75%;">
                                         
-                                        <!-- Testo del Messaggio -->
                                         <div style="font-size: 0.95rem; word-wrap: break-word;">@msg.Content</div>
                                         
-                                        <!-- ALLEGATO (SE PRESENTE) -->
                                         @if (msg.Attachments != null && msg.Attachments.Any())
                                         {
                                             var att = msg.Attachments.First();
@@ -162,7 +152,6 @@
                                             </div>
                                         }
 
-                                        <!-- Orario -->
                                         <div class="text-end mt-1" style="font-size: 0.65rem; opacity: 0.7;">
                                             @msg.SentAt.ToString("HH:mm")
                                         </div>
@@ -172,10 +161,8 @@
                         }
                     </div>
 
-                    <!-- Footer / Area Input Testo -->
                     @if (selectedChat.Status == 0)
                     {
-                        <!-- Messaggio di errore temporaneo (per validazioni di sicurezza file) -->
                         @if(!string.IsNullOrEmpty(errorMessaggio))
                         {
                             <div class="bg-danger text-white px-3 py-1 text-center small">
@@ -186,21 +173,18 @@
                         <div class="p-3 bg-white border-top">
                             <div class="input-group align-items-center bg-light rounded-pill p-1 border">
                                 
-                                <!-- Input File Nascosto & Label Graffetta -->
                                 <input type="file" id="fileAttach" @ref="fileAttachRef" style="display:none;" onchange="@GestisciUploadAllegato" accept=".jpg,.jpeg,.png,.pdf" />
                                 
                                 <label for="fileAttach" class="btn btn-light rounded-circle text-secondary ms-1 d-flex justify-content-center align-items-center" style="width: 40px; height: 40px; cursor: pointer; margin-bottom: 0;" title="Allega file">
                                     <i class="bi bi-paperclip fs-5"></i>
                                 </label>
                                 
-                                <!-- Input Testo -->
                                 <input type="text" class="form-control border-0 bg-transparent shadow-none px-3" 
                                        placeholder="Scrivi un messaggio..." 
                                        @bind="newMessageContent" 
                                        @bind:event="oninput" 
                                        @onkeyup="HandleKeyUp" />
                                 
-                                <!-- Bottone Invia -->
                                 <button class="btn btn-primary rounded-circle me-1 d-flex justify-content-center align-items-center" 
                                         style="width: 40px; height: 40px; padding: 0;"
                                         onclick="@InviaMessaggioTesto" 
@@ -310,7 +294,6 @@
     private List<Message> currentMessages = new();
     private string newMessageContent = "";
     
-    // Variabili per l'upload
     private ElementReference fileAttachRef;
     private string errorMessaggio = "";
 
@@ -419,7 +402,6 @@
             unreadCounts[chat.Id] = 0;
         }
 
-        // Includiamo gli allegati nella query per mostrarli
         currentMessages = await Db.Messages
             .Include(m => m.Attachments)
             .Where(m => m.ChatSessionId == chat.Id)
@@ -471,15 +453,12 @@
         }
     }
 
-    // ==========================================
-    // LOGICA DI SICUREZZA E UPLOAD ALLEGATI
-    // ==========================================
     private async Task GestisciUploadAllegato(ChangeEventArgs e)
     {
         errorMessaggio = "";
         if (selectedChat == null || selectedChat.Status == 1) return;
 
-        // 1. SICUREZZA: Prevenzione IDOR (Assicurati che l'utente faccia parte della chat)
+        //sicurezza
         if (currentUserId != selectedChat.PatientId && currentUserId != selectedChat.DoctorId)
         {
             errorMessaggio = "Errore di sicurezza: accesso negato.";
@@ -488,11 +467,9 @@
 
         try
         {
-            // Recuperiamo i metadati del file tramite JS
             var fileName = await JS.InvokeAsync<string>("eval", "document.getElementById('fileAttach').files[0].name");
             var fileSize = await JS.InvokeAsync<long>("eval", "document.getElementById('fileAttach').files[0].size");
 
-            // 2. SICUREZZA: Validazione Estensione
             var ext = Path.GetExtension(fileName).ToLower();
             var estensioniAmmesse = new[] { ".jpg", ".jpeg", ".png", ".pdf" };
             if (!estensioniAmmesse.Contains(ext))
@@ -501,28 +478,23 @@
                 return;
             }
 
-            // 3. SICUREZZA: Validazione Peso (Max 5 MB)
             if (fileSize > 5 * 1024 * 1024)
             {
                 errorMessaggio = "Il file supera il limite di 5 MB.";
                 return;
             }
 
-            // Invoca la TUA funzione per estrarre la stringa Base64 pura
             var base64Data = await JS.InvokeAsync<string>("readFileAsBase64", fileAttachRef);
 
             if (!string.IsNullOrEmpty(base64Data))
             {
-                // 4. SICUREZZA: Salvataggio fisico sul Server (Non nel DB)
                 var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "PrivateDocs");
                 if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
                 
-                // Generiamo un nome univoco per evitare sovrascritture di file omonimi
                 var physicalPath = Path.Combine(folderPath, Guid.NewGuid().ToString() + ext);
                 byte[] fileBytes = Convert.FromBase64String(base64Data);
                 await File.WriteAllBytesAsync(physicalPath, fileBytes);
 
-                // Creiamo prima il messaggio di testo che fa da "contenitore"
                 var msg = new Message
                 {
                     ChatSessionId = selectedChat.Id,
@@ -531,32 +503,29 @@
                     Content = "[Allegato Inviato]",
                     SentAt = DateTime.Now,
                     IsRead = false,
-                    Attachments = new List<Attachment>() // Inizializziamo la lista
+                    Attachments = new List<Attachment>()
                 };
                 
                 Db.Messages.Add(msg);
 
                 CreaNotificaNuovoMessaggio();
 
-                await Db.SaveChangesAsync(); // Questo assegna un Id al Message
+                await Db.SaveChangesAsync();
 
-                // Ora colleghiamo l'allegato
                 var attachment = new Attachment
                 {
                     MessageId = msg.Id,
                     FileName = fileName,
                     FileExtension = ext,
-                    StoragePath = physicalPath // Salviamo solo la rotta, non il Base64 gigante!
+                    StoragePath = physicalPath
                 };
                 
                 Db.Attachments.Add(attachment);
                 await Db.SaveChangesAsync();
 
-                // Aggiorniamo la vista
                 msg.Attachments.Add(attachment);
                 currentMessages.Add(msg);
                 
-                // Resettiamo l'input file tramite JS per permettere di ricaricare lo stesso file
                 await JS.InvokeVoidAsync("eval", "document.getElementById('fileAttach').value = ''");
 
                 await Scroll();
@@ -568,27 +537,20 @@
         }
     }
 
-    // ==========================================
-    // LOGICA DI DOWNLOAD ALLEGATI
-    // ==========================================
     private async Task ScaricaAllegato(Attachment att)
     {
-        // 1. SICUREZZA: Prevenzione IDOR in Lettura
         if (selectedChat == null || (currentUserId != selectedChat.PatientId && currentUserId != selectedChat.DoctorId)) return;
 
         if (File.Exists(att.StoragePath))
         {
-            // Leggiamo il file fisico dal percorso sicuro e lo convertiamo in Base64
             byte[] fileBytes = await File.ReadAllBytesAsync(att.StoragePath);
             string base64 = Convert.ToBase64String(fileBytes);
             
-            // Determiniamo il MIME type corretto
             string mimeType = "application/octet-stream";
             if (att.FileExtension == ".pdf") mimeType = "application/pdf";
             else if (att.FileExtension == ".jpg" || att.FileExtension == ".jpeg") mimeType = "image/jpeg";
             else if (att.FileExtension == ".png") mimeType = "image/png";
 
-            // Usiamo la TUA funzione per forzare il download nel browser
             await JS.InvokeVoidAsync("downloadFile", att.FileName, mimeType, base64);
         }
     }

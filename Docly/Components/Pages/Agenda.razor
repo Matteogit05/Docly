@@ -11,9 +11,6 @@
 
 <PageTitle>Agenda - Docly</PageTitle>
 
-<!-- ========================================== -->
-<!-- VISTA MEDICO (Ricerca per Data)            -->
-<!-- ========================================== -->
 <AuthorizeView Roles="Doctor">
     <Authorized>
         <div class="container-fluid mt-4">
@@ -25,24 +22,20 @@
                 </div>
             </div>
 
-            <!-- Selezione Data con Frecce Direzionali -->
             <div class="row mb-4">
                 <div class="col-12 col-md-8 col-lg-5">
                     <label for="agendaDate" class="form-label fw-bold text-secondary">Seleziona una data:</label>
                     <div class="input-group shadow-sm">
-                        <!-- Bottone Indietro -->
                         <button class="btn bg-white border text-primary px-3 px-md-4" type="button" 
                                 @onclick="GoToPreviousDay" 
                                 disabled="@IsPreviousDayDisabled">
                             <i class="bi bi-chevron-left"></i>
                         </button>
                         
-                        <!-- Input Calendario -->
                         <input type="date" id="agendaDate" class="form-control text-center fw-bold" 
                                min="@DateTime.Today.ToString("yyyy-MM-dd")"
                                @bind="selectedDate" @bind:after="LoadDoctorAppointments" />
                         
-                        <!-- Bottone Avanti -->
                         <button class="btn bg-white border text-primary px-3 px-md-4" type="button" 
                                 @onclick="GoToNextDay">
                             <i class="bi bi-chevron-right"></i>
@@ -86,13 +79,9 @@
 </AuthorizeView>
 
 
-<!-- ========================================== -->
-<!-- VISTA PAZIENTE (Card + Griglia)            -->
-<!-- ========================================== -->
 <AuthorizeView Roles="Patient">
     <Authorized>
         <div class="container-fluid mt-4">
-            <!-- Intestazione con Icona -->
             <div class="row mb-4">
                 <div class="col-12">
                     <h2 class="text-primary"><i class="bi bi-calendar-week-fill me-2"></i> Agenda</h2>
@@ -100,7 +89,6 @@
                 </div>
             </div>
 
-            <!-- SEZIONE: Prossimo Appuntamento -->
             <div class="row mb-3">
                 <div class="col-12">
                     <h4 class="text-secondary">Prossimo appuntamento</h4>
@@ -126,11 +114,9 @@
             {
                 <div class="row mb-5">
                     <div class="col-12 col-lg-8 col-xl-6">
-                        <!-- CARD GRANDE -->
                         <div class="card shadow border-0 rounded-4">
                             <div class="card-body p-4 p-md-5">
                                 
-                                <!-- Intestazione Card: Solo Nome Medico -->
                                 <div class="border-bottom pb-3 mb-4">
                                     <h4 class="card-title mb-0 fw-bold text-dark d-flex align-items-center">
                                         <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 50px; height: 50px;">
@@ -140,7 +126,6 @@
                                     </h4>
                                 </div>
                                 
-                                <!-- Dettagli: Data e Ora -->
                                 <div class="row mb-4">
                                     <div class="col-sm-6 mb-3 mb-sm-0">
                                         <div class="d-flex align-items-center text-secondary">
@@ -162,7 +147,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Pulsante Azione -->
                                 <div class="text-end mt-2">
                                     <button class="btn btn-primary px-4 py-2 fw-bold rounded-pill" @onclick="() => VediAppuntamento(nextAppointment.Id)">
                                         Vedi appuntamento <i class="bi bi-arrow-right ms-1"></i>
@@ -175,7 +159,6 @@
                 </div>
             }
 
-            <!-- SEZIONE: I Tuoi Appuntamenti (Lista completa futura) -->
             <div class="row mb-3 mt-4">
                 <div class="col-12">
                     <h4 class="text-secondary">Tutti gli appuntamenti</h4>
@@ -186,7 +169,6 @@
             <div class="row g-4 mb-5">
                 @if (isLoading)
                 {
-                    // Gestito dal loader in alto
                 }
                 else if (otherAppointments == null || !otherAppointments.Any())
                 {
@@ -218,15 +200,12 @@
     private bool isLoading = true;
     private bool isDoctor = false;
 
-    // --- Variabili per il Medico ---
     private int? currentDoctorId;
-    private DateTime selectedDate = DateTime.Today; // Mostra oggi di default
+    private DateTime selectedDate = DateTime.Today;
     private List<Appointment> doctorAppointments = new();
     
-    //restituisce true se la data selezionata è uguale o minore a oggi
     private bool IsPreviousDayDisabled => selectedDate.Date <= DateTime.Today;
 
-    // --- Variabili per il Paziente ---
     private Appointment? nextAppointment;
     private List<Appointment> otherAppointments = new();
 
@@ -245,7 +224,6 @@
 
                 if (isDoctor)
                 {
-                    // === LOGICA MEDICO ===
                     var doctor = await Db.Doctors.FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
                     if (doctor != null)
                     {
@@ -255,7 +233,6 @@
                 }
                 else if (user.IsInRole("Patient"))
                 {
-                    // === LOGICA PAZIENTE ===
                     var patient = await Db.Patients.FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
                     if (patient != null)
                     {
@@ -282,12 +259,10 @@
         isLoading = false;
     }
 
-    // Metodo specifico per scaricare la giornata del medico
     private async Task LoadDoctorAppointments()
     {
         if (currentDoctorId == null) return;
         
-        // Creiamo un range per coprire l'intera giornata selezionata (da 00:00 a 23:59)
         var startOfDay = selectedDate.Date;
         var endOfDay = startOfDay.AddDays(1);
 
@@ -303,7 +278,6 @@
             .ToListAsync();
     }
 
-    // Naviga al giorno precedente (se consentito)
     private async Task GoToPreviousDay()
     {
         if (selectedDate.Date > DateTime.Today)
@@ -313,7 +287,6 @@
         }
     }
 
-    // Naviga al giorno successivo
     private async Task GoToNextDay()
     {
         selectedDate = selectedDate.AddDays(1);

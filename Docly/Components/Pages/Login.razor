@@ -50,7 +50,6 @@
 
     public bool HasError => !string.IsNullOrEmpty(ErrorParam);
 
-    // Se l'utente è già loggato e va su "/", lo mandiamo via
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();

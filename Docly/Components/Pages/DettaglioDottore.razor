@@ -35,7 +35,6 @@
                 <div class="card shadow-sm border-0 rounded-4">
                     <div class="card-body p-5">
                         
-                        <!-- Intestazione Medico -->
                         <div class="d-flex align-items-center mb-4">
                             <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-4" style="width: 80px; height: 80px; font-size: 2rem;">
                                 @doctor.FirstName[0]@doctor.LastName[0]
@@ -48,18 +47,15 @@
 
                         <hr class="mb-4" />
 
-                        <!-- Biografia -->
                         <h5 class="fw-bold mb-3">Informazioni</h5>
                         <p class="text-muted mb-5" style="line-height: 1.7;">
                             @(string.IsNullOrWhiteSpace(doctor.Bio) ? "Nessuna biografia disponibile per questo medico." : doctor.Bio)
                         </p>
 
-                        <!-- Pulsanti d'Azione (Solo per Pazienti) -->
                         <AuthorizeView Roles="Patient">
                             <Authorized>
                                 <div class="d-flex gap-3 flex-wrap">
                                     
-                                    <!-- Pulsante Preferiti con due stati -->
                                     <button class="btn @(isFavorite ? "btn-outline-danger" : "btn-outline-primary") px-4 py-2 fw-bold" 
                                             @onclick="ToggleFavorite">
                                         @if (isFavorite)
@@ -72,18 +68,15 @@
                                         }
                                     </button>
 
-                                    <!-- Pulsante Apri Chat -->
                                     <button class="btn btn-primary px-4 py-2 fw-bold" @onclick="OpenChat">
                                         <i class="bi bi-chat-dots-fill me-2"></i>Apri chat
                                     </button>
 
                                 </div>
 
-<!-- SEZIONE PRENOTAZIONE -->
                                 <hr class="my-5" />
                                 <h4 class="fw-bold mb-4"><i class="bi bi-calendar-check text-primary me-2"></i>Prenota una Visita</h4>
 
-                                <!-- Messaggi di Successo o Errore -->
                                 @if (!string.IsNullOrEmpty(bookingMessage))
                                 {
                                     <div class="alert alert-success shadow-sm d-flex align-items-center">
@@ -99,16 +92,13 @@
                                     </div>
                                 }
 
-                                <!-- Selezione Data (Calendario) -->
                                 <div class="mb-4">
                                     <label for="bookingDate" class="form-label fw-bold text-secondary">1. Scegli una data:</label>
-                                    <!-- Usiamo @bind:after per ricaricare gli slot appena l'utente cambia la data -->
                                     <input type="date" id="bookingDate" class="form-control form-control-lg w-auto shadow-sm" 
                                            min="@DateTime.Today.ToString("yyyy-MM-dd")"
                                            @bind="selectedDate" @bind:after="LoadSlots" />
                                 </div>
 
-                                <!-- Elenco Slot Orari -->
                                 <div class="mb-4">
                                     <label class="form-label fw-bold text-secondary">2. Orari disponibili:</label>
                                     @if (isLoadingSlots)
@@ -139,7 +129,6 @@
                                     }
                                 </div>
 
-                                <!-- Modulo Conferma (visibile solo dopo aver cliccato un orario) -->
                                 @if (selectedSlot != null)
                                 {
                                     <div class="card bg-light border-0 shadow-sm mt-4 border-start border-primary border-4">
@@ -190,7 +179,7 @@
     private bool isLoading = true;
     private bool isFavorite = false;
     private int? currentPatientId;
-    private DateTime selectedDate = DateTime.Today; // Di default mostriamo oggi
+    private DateTime selectedDate = DateTime.Today;
     private List<TimeSpan> availableSlots = new();
     private TimeSpan? selectedSlot = null;
     private string symptomNotes = "";
@@ -201,14 +190,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Carica i dati del medico in base all'ID passato nell'URL
         doctor = await Db.Doctors
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == DoctorId && d.IsActive);
 
         if (doctor != null)
         {
-            // 2. Identifica il paziente loggato per gestire i preferiti
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
 
@@ -226,7 +213,6 @@
                     {
                         currentPatientId = patient.Id;
 
-                        // 3. Verifica se il medico è già tra i preferiti di questo paziente
                         isFavorite = await Db.FavoriteDoctors
                             .AnyAsync(f => f.PatientId == currentPatientId && f.DoctorId == DoctorId);
                     }
@@ -248,7 +234,6 @@
 
         if (isFavorite)
         {
-            // Se è già preferito, rimuovilo
             var fav = await Db.FavoriteDoctors.FindAsync(currentPatientId.Value, DoctorId);
             if (fav != null)
             {
@@ -259,7 +244,6 @@
         }
         else
         {
-            // Se non è preferito, aggiungilo
             var fav = new FavoriteDoctor { PatientId = currentPatientId.Value, DoctorId = DoctorId };
             Db.FavoriteDoctors.Add(fav);
             await Db.SaveChangesAsync();

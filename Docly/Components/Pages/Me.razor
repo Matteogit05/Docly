@@ -115,7 +115,6 @@
                     <div class="row justify-content-center">
                         <div class="col-12 col-md-10 col-lg-8">
                             
-                            <!-- Card 1: Informazioni Professionali -->
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
                                 
                                 <div class="bg-primary" style="height: 100px;"></div>
@@ -180,7 +179,6 @@
                                 </div>
                             </div>
 
-                            <!-- Card 2: Orari di Disponibilità -->
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
                                 <div class="card-body px-4 px-md-5 py-5">
                                     <h4 class="fw-bold mb-4 text-primary border-bottom pb-2">
@@ -245,7 +243,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Card 3: Gestione Ferie e Assenze -->
                             <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
                                 <div class="card-body px-4 px-md-5 py-5">
                                     <h4 class="fw-bold mb-4 text-danger border-bottom pb-2">
@@ -254,7 +251,6 @@
                                     
                                     <p class="text-muted mb-4">Usa questo modulo per registrare ferie, malattie o permessi. Durante questi periodi, i pazienti non potranno prenotare visite.</p>
                                     
-                                    <!-- Form Inserimento Ferie -->
                                     <FerieDottoreForm
                                         OnSave="SalvaFerie" />
                                         
@@ -265,7 +261,6 @@
                                         </div>
                                     }
 
-                                    <!-- Nuova Sezione: Elenco Assenze -->
                                     <div class="mt-5 pt-4 border-top">
                                         <h5 class="fw-bold mb-4"><i class="bi bi-list-check me-2"></i> Periodi di assenza inseriti</h5>
                                         
@@ -298,7 +293,6 @@
                                                                     }
                                                                 </div>
                                                                 
-                                                                <!-- Bottone Elimina Assenza (Placeholder) -->
                                                                 <button class="btn btn-sm btn-outline-danger border-0" @onclick="() => EliminaAssenza(assenza)" title="Elimina assenza">
                                                                     <i class="bi bi-trash-fill"></i>
                                                                 </button>
@@ -368,7 +362,6 @@
                             .Where(s => s.DoctorId == doctor.Id)
                             .ToListAsync();
                             
-                        // Carichiamo anche l'elenco delle assenze
                         doctorAbsences = await Db.DoctorAbsences
                             .Where(a => a.DoctorId == doctor.Id)
                             .OrderBy(a => a.StartDate)
@@ -478,14 +471,12 @@
         Db.DoctorAbsences.Add(nuovaAssenza);
         await Db.SaveChangesAsync();
         
-        // Aggiungiamo la nuova assenza alla lista a schermo e la riordiniamo
         doctorAbsences.Add(nuovaAssenza);
         doctorAbsences = doctorAbsences.OrderBy(a => a.StartDate).ToList();
 
         ferieSuccess = true;
         StateHasChanged();
         
-        // Facciamo scomparire il messaggio di successo dopo 3 secondi
         await Task.Delay(3000);
         ferieSuccess = false;
         StateHasChanged();
