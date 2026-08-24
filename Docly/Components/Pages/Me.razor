@@ -1,0 +1,494 @@
+@page "/me"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Docly.Data.Shared
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<PageTitle>Il Mio Profilo - Docly</PageTitle>
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-primary fw-bold"><i class="bi bi-person-circle me-2"></i> Il Mio Profilo</h2>
+            <p class="text-muted">Gestisci i tuoi dati personali e le tue preferenze.</p>
+            <hr />
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <AuthorizeView Roles="Patient">
+            <Authorized>
+                @if (patient != null)
+                {
+                    <div class="row justify-content-center">
+                        <div class="col-12 col-md-10 col-lg-8">
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+                                
+                                <div class="bg-primary" style="height: 100px;"></div>
+                                
+                                <div class="card-body px-4 px-md-5 pb-5 position-relative">
+                                    
+                                    <div class="text-center" style="margin-top: -60px; margin-bottom: 30px;">
+                                        <div class="bg-white rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm border border-4 border-white" style="width: 120px; height: 120px;">
+                                            <i class="bi bi-person-fill text-primary" style="font-size: 5rem; line-height: 1;"></i>
+                                        </div>
+                                    </div>
+
+                                    @if (isEditing)
+                                    {
+                                        <h5 class="fw-bold mb-4 text-center">Modifica Dati Personali</h5>
+                                        <PazienteForm
+                                            CurrentPatient="patient"
+                                            OnSave="SalvaPaziente"
+                                            OnCancel="ChiudiModifica" />
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center mb-5">
+                                            <h2 class="fw-bold mb-1">@patient.FirstName @patient.LastName</h2>
+                                            <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-person-badge me-1"></i> Paziente</span>
+                                        </div>
+
+                                        <h5 class="fw-bold mb-3 border-bottom pb-2">Informazioni Personali</h5>
+                                        
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-6">
+                                                <div class="d-flex align-items-center p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-calendar-date text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Data di Nascita</small>
+                                                        <span class="fw-semibold text-dark fs-6">@patient.DateOfBirth.ToString("dd MMMM yyyy")</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <div class="d-flex align-items-center p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-card-text text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Codice Fiscale</small>
+                                                        <span class="fw-semibold text-dark fs-6 text-uppercase">@patient.TaxId</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-end mt-4 pt-3 border-top">
+                                            <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModifica">
+                                                <i class="bi bi-pencil-square me-2"></i> Modifica Profilo
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i> Dati del paziente non trovati.</div>
+                }
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Doctor">
+            <Authorized>
+                @if (doctor != null)
+                {
+                    <div class="row justify-content-center">
+                        <div class="col-12 col-md-10 col-lg-8">
+                            
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+                                
+                                <div class="bg-primary" style="height: 100px;"></div>
+                                
+                                <div class="card-body px-4 px-md-5 pb-5 position-relative">
+                                    
+                                    <div class="text-center" style="margin-top: -60px; margin-bottom: 30px;">
+                                        <div class="bg-white rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm border border-4 border-white" style="width: 120px; height: 120px;">
+                                            <i class="bi bi-person-badge text-primary" style="font-size: 4.5rem; line-height: 1;"></i>
+                                        </div>
+                                    </div>
+
+                                    @if (isEditing)
+                                    {
+                                        <h5 class="fw-bold mb-4 text-center">Modifica Informazioni Professionali</h5>
+                                        <DottoreForm
+                                            CurrentDoctor="doctor"
+                                            OnSave="SalvaDottore"
+                                            OnCancel="ChiudiModifica" />
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center mb-5">
+                                            <h2 class="fw-bold mb-1">Dr. @doctor.FirstName @doctor.LastName</h2>
+                                            <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-heart-pulse me-1"></i> Medico Specialista</span>
+                                        </div>
+
+                                        <h5 class="fw-bold mb-3 border-bottom pb-2">Informazioni Professionali</h5>
+                                        
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-12">
+                                                <div class="d-flex align-items-center p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3 flex-shrink-0" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-award text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Specializzazione</small>
+                                                        <span class="fw-semibold text-dark fs-6">@doctor.Specialization</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <div class="d-flex align-items-start p-3 bg-light rounded-3">
+                                                    <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm me-3 flex-shrink-0" style="width: 45px; height: 45px;">
+                                                        <i class="bi bi-card-text text-primary fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.7rem;">Biografia</small>
+                                                        <span class="fw-semibold text-dark fs-6" style="line-height: 1.5;">@doctor.Bio</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-end mt-4 pt-3 border-top">
+                                            <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModifica">
+                                                <i class="bi bi-pencil-square me-2"></i> Modifica Profilo
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+                                <div class="card-body px-4 px-md-5 py-5">
+                                    <h4 class="fw-bold mb-4 text-primary border-bottom pb-2">
+                                        <i class="bi bi-clock-history me-2"></i> Orari di Disponibilità
+                                    </h4>
+                                    
+                                    @if(isEditingAvailability)
+                                    {
+                                        <DisponibilitaDottoreForm 
+                                            CurrentSchedules="doctorSchedules"
+                                            OnSave="SalvaDisponibilita"
+                                            OnCancel="ChiudiModificaDisponibilita" />
+                                    }
+                                    else
+                                    {
+                                        @if(doctorSchedules == null || !doctorSchedules.Any())
+                                        {
+                                            <div class="alert alert-info shadow-sm mb-4">
+                                                <i class="bi bi-info-circle-fill me-2"></i> Non hai ancora impostato i tuoi orari di lavoro.
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-6">
+                                                    <div class="p-3 bg-light rounded-3 border">
+                                                        <div class="text-muted fw-bold text-uppercase mb-2 small"><i class="bi bi-brightness-alt-high me-1"></i> Mattina</div>
+                                                        @if(RefSchedules.Count >= 1)
+                                                        {
+                                                            <div class="fs-5 text-dark fw-semibold">@RefSchedules[0].StartTime.ToString(@"hh\:mm") - @RefSchedules[0].EndTime.ToString(@"hh\:mm")</div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted fst-italic">Non impostato</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6">
+                                                    <div class="p-3 bg-light rounded-3 border">
+                                                        <div class="text-muted fw-bold text-uppercase mb-2 small"><i class="bi bi-brightness-high-fill me-1"></i> Pomeriggio</div>
+                                                        @if(RefSchedules.Count >= 2)
+                                                        {
+                                                            <div class="fs-5 text-dark fw-semibold">@RefSchedules[1].StartTime.ToString(@"hh\:mm") - @RefSchedules[1].EndTime.ToString(@"hh\:mm")</div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted fst-italic">Non impostato</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p class="text-muted small mb-4"><i class="bi bi-info-circle me-1"></i> I turni si applicano automaticamente dal Lunedì al Venerdì.</p>
+                                        }
+                                        
+                                        <div class="text-end pt-3 border-top">
+                                            <button class="btn btn-outline-primary px-4 py-2 fw-bold" @onclick="ApriModificaDisponibilita">
+                                                <i class="bi bi-calendar-range me-2"></i> Modifica Disponibilità
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+                                <div class="card-body px-4 px-md-5 py-5">
+                                    <h4 class="fw-bold mb-4 text-danger border-bottom pb-2">
+                                        <i class="bi bi-calendar-x me-2"></i> Gestione Assenze
+                                    </h4>
+                                    
+                                    <p class="text-muted mb-4">Usa questo modulo per registrare ferie, malattie o permessi. Durante questi periodi, i pazienti non potranno prenotare visite.</p>
+                                    
+                                    <FerieDottoreForm
+                                        OnSave="SalvaFerie" />
+                                        
+                                    @if (ferieSuccess)
+                                    {
+                                        <div class="alert alert-success shadow-sm mt-4 mb-0">
+                                            <i class="bi bi-check-circle-fill me-2"></i> Assenza registrata con successo!
+                                        </div>
+                                    }
+
+                                    <div class="mt-5 pt-4 border-top">
+                                        <h5 class="fw-bold mb-4"><i class="bi bi-list-check me-2"></i> Periodi di assenza inseriti</h5>
+                                        
+                                        @if(doctorAbsences == null || !doctorAbsences.Any())
+                                        {
+                                            <div class="alert alert-light border text-muted small">
+                                                Nessun periodo di assenza registrato.
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="row g-3">
+                                                @foreach(var assenza in doctorAbsences)
+                                                {
+                                                    <div class="col-md-6">
+                                                        <div class="card bg-light border-0 shadow-sm h-100">
+                                                            <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <div class="fw-bold text-dark mb-1">
+                                                                        <i class="bi bi-calendar-event me-1 text-danger"></i> 
+                                                                        @assenza.StartDate.ToString("dd/MM/yyyy") 
+                                                                        <i class="bi bi-arrow-right mx-1 text-muted"></i> 
+                                                                        @assenza.EndDate.ToString("dd/MM/yyyy")
+                                                                    </div>
+                                                                    @if(!string.IsNullOrEmpty(assenza.Reason))
+                                                                    {
+                                                                        <small class="text-muted d-block text-truncate" style="max-width: 200px;" title="@assenza.Reason">
+                                                                            @assenza.Reason
+                                                                        </small>
+                                                                    }
+                                                                </div>
+                                                                
+                                                                <button class="btn btn-sm btn-outline-danger border-0" @onclick="() => EliminaAssenza(assenza)" title="Elimina assenza">
+                                                                    <i class="bi bi-trash-fill"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                    
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i> Dati del medico non trovati.</div>
+                }
+            </Authorized>
+        </AuthorizeView>
+    }
+</div>
+
+@code {
+    private Patient? patient;
+    private Doctor? doctor;
+    private List<DoctorSchedule> doctorSchedules = new();
+    private List<DoctorAbsence> doctorAbsences = new();
+    
+    private bool isLoading = true;
+    private bool isEditing = false;
+    private bool isEditingAvailability = false;
+    private bool ferieSuccess = false;
+
+    private List<DoctorSchedule> RefSchedules => doctorSchedules?
+        .Where(s => s.DayOfWeek == DayOfWeek.Monday)
+        .OrderBy(s => s.StartTime)
+        .ToList() ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (identityUserId != null)
+            {
+                if (user.IsInRole("Patient"))
+                {
+                    patient = await Db.Patients
+                        .FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
+                }
+                else if (user.IsInRole("Doctor"))
+                {
+                    doctor = await Db.Doctors
+                        .FirstOrDefaultAsync(d => d.IdentityUserId == identityUserId);
+                        
+                    if (doctor != null)
+                    {
+                        doctorSchedules = await Db.DoctorSchedules
+                            .Where(s => s.DoctorId == doctor.Id)
+                            .ToListAsync();
+                            
+                        doctorAbsences = await Db.DoctorAbsences
+                            .Where(a => a.DoctorId == doctor.Id)
+                            .OrderBy(a => a.StartDate)
+                            .ToListAsync();
+                    }
+                }
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private void ApriModifica()
+    {
+        isEditing = true;
+        StateHasChanged();
+    }
+
+    private void ChiudiModifica()
+    {
+        isEditing = false;
+        StateHasChanged();
+    }
+
+    private async Task SalvaPaziente(Patient updatedPatient)
+    {
+        await Db.SaveChangesAsync();
+        isEditing = false;
+        StateHasChanged();
+    }
+    
+    private async Task SalvaDottore(Doctor updatedDoctor)
+    {
+        await Db.SaveChangesAsync();
+        isEditing = false;
+        StateHasChanged();
+    }
+    
+    private void ApriModificaDisponibilita()
+    {
+        isEditingAvailability = true;
+        StateHasChanged();
+    }
+
+    private void ChiudiModificaDisponibilita()
+    {
+        isEditingAvailability = false;
+        StateHasChanged();
+    }
+
+    private async Task SalvaDisponibilita(DisponibilitaDottoreForm.DisponibilitaViewModel newSchedules)
+    {
+        if (doctor == null) return;
+        
+        var matIni = TimeSpan.Parse(newSchedules.MattinaInizio!);
+        var matFin = TimeSpan.Parse(newSchedules.MattinaFine!);
+        var pomIni = TimeSpan.Parse(newSchedules.PomeriggioInizio!);
+        var pomFin = TimeSpan.Parse(newSchedules.PomeriggioFine!);
+
+        var oldSchedules = await Db.DoctorSchedules.Where(s => s.DoctorId == doctor.Id).ToListAsync();
+        Db.DoctorSchedules.RemoveRange(oldSchedules);
+        
+        var newDbSchedules = new List<DoctorSchedule>();
+        for (int i = 1; i <= 5; i++)
+        {
+            var day = (DayOfWeek)i;
+            
+            newDbSchedules.Add(new DoctorSchedule
+            {
+                DoctorId = doctor.Id,
+                DayOfWeek = day,
+                StartTime = matIni,
+                EndTime = matFin,
+                SlotDurationMinutes = 15
+            });
+            
+            newDbSchedules.Add(new DoctorSchedule
+            {
+                DoctorId = doctor.Id,
+                DayOfWeek = day,
+                StartTime = pomIni,
+                EndTime = pomFin,
+                SlotDurationMinutes = 15
+            });
+        }
+        
+        Db.DoctorSchedules.AddRange(newDbSchedules);
+        await Db.SaveChangesAsync();
+        
+        doctorSchedules = newDbSchedules;
+        isEditingAvailability = false;
+        StateHasChanged();
+    }
+
+    private async Task SalvaFerie(FerieDottoreForm.FerieViewModel assenzaInfo)
+    {
+        if (doctor == null) return;
+
+        var nuovaAssenza = new DoctorAbsence
+        {
+            DoctorId = doctor.Id,
+            StartDate = assenzaInfo.StartDate,
+            EndDate = assenzaInfo.EndDate,
+            Reason = assenzaInfo.Reason
+        };
+
+        Db.DoctorAbsences.Add(nuovaAssenza);
+        await Db.SaveChangesAsync();
+        
+        doctorAbsences.Add(nuovaAssenza);
+        doctorAbsences = doctorAbsences.OrderBy(a => a.StartDate).ToList();
+
+        ferieSuccess = true;
+        StateHasChanged();
+        
+        await Task.Delay(3000);
+        ferieSuccess = false;
+        StateHasChanged();
+    }
+
+    private async Task EliminaAssenza(DoctorAbsence assenza)
+    {
+        Db.DoctorAbsences.Remove(assenza);
+        await Db.SaveChangesAsync();
+
+        doctorAbsences.Remove(assenza);
+        
+        StateHasChanged();
+    }
+}

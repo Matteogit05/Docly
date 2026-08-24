@@ -1,0 +1,95 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using Docly.Data.Entities
+
+@if (model != null)
+{
+    <EditForm Model="@model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Nome</label>
+                <InputText class="form-control" @bind-Value="model.FirstName" />
+                <ValidationMessage For="@(() => model.FirstName)" class="text-danger small" />
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold text-muted small text-uppercase">Cognome</label>
+                <InputText class="form-control" @bind-Value="model.LastName" />
+                <ValidationMessage For="@(() => model.LastName)" class="text-danger small" />
+            </div>
+            
+            <div class="col-12">
+                <label class="form-label fw-bold text-muted small text-uppercase">Specializzazione</label>
+                <InputText class="form-control" @bind-Value="model.Specialization" placeholder="es. Cardiologo, Ortopedico..." />
+                <ValidationMessage For="@(() => model.Specialization)" class="text-danger small" />
+            </div>
+            
+            <div class="col-12">
+                <label class="form-label fw-bold text-muted small text-uppercase">Biografia</label>
+                <InputTextArea class="form-control" @bind-Value="model.Bio" rows="4" placeholder="Descrivi la tua esperienza e le tue competenze..." />
+                <ValidationMessage For="@(() => model.Bio)" class="text-danger small" />
+            </div>
+        </div>
+
+        <ValidationSummary class="alert alert-warning p-2 rounded small" />
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button type="button" class="btn btn-light px-4" onclick="@OnCancel">Annulla</button>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">Salva Modifiche</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Doctor CurrentDoctor { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<Doctor> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private DottoreViewModel model = new();
+
+    protected override void OnParametersSet()
+    {
+        if (CurrentDoctor != null && string.IsNullOrEmpty(model.FirstName))
+        {
+            model.FirstName = CurrentDoctor.FirstName;
+            model.LastName = CurrentDoctor.LastName;
+            model.Specialization = CurrentDoctor.Specialization;
+            model.Bio = CurrentDoctor.Bio;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        CurrentDoctor.FirstName = model.FirstName;
+        CurrentDoctor.LastName = model.LastName;
+        CurrentDoctor.Specialization = model.Specialization;
+        CurrentDoctor.Bio = model.Bio;
+
+        await OnSave.InvokeAsync(CurrentDoctor);
+    }
+
+    public class DottoreViewModel
+    {
+        [Required(ErrorMessage = "Il nome è obbligatorio.")]
+        [StringLength(100, ErrorMessage = "Il nome non può superare i 100 caratteri.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Il cognome è obbligatorio.")]
+        [StringLength(100, ErrorMessage = "Il cognome non può superare i 100 caratteri.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La specializzazione è obbligatoria.")]
+        [StringLength(150, ErrorMessage = "La specializzazione non può superare i 150 caratteri.")]
+        public string Specialization { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La biografia è obbligatoria.")]
+        public string Bio { get; set; } = string.Empty;
+    }
+}

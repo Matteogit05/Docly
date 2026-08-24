@@ -1,0 +1,281 @@
+@page "/utenti"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject ApplicationDbContext Db
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+<PageTitle>Gestione Utenti - Docly</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-danger"><i class="bi bi-people-fill me-2"></i> Gestione Utenti</h2>
+            <p>Crea nuovi account e visualizza gli utenti registrati a sistema.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(statusIsError ? "alert-danger" : "alert-success") shadow-sm">
+            @statusMessage
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-12 col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-bottom p-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-person-plus text-primary me-2"></i> Crea Nuovo</h5>
+                </div>
+                <div class="card-body p-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nome</label>
+                        <input class="form-control" @bind="newName" placeholder="Mario">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Cognome</label>
+                        <input class="form-control" @bind="newLastName" placeholder="Rossi">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input class="form-control" @bind="newEmail" placeholder="mario.rossi@email.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Password</label>
+                        <input class="form-control" type="password" @bind="newPassword" placeholder="******">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Ruolo</label>
+                        <select class="form-select" @bind="newRole">
+                            @foreach (var role in allRoles)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </div>
+                    <button class="btn btn-primary w-100 fw-bold rounded-pill" @onclick="CreateUser">
+                        Crea Utente
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-bottom p-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-ul text-primary me-2"></i> Utenti Registrati</h5>
+                </div>
+
+                <div class="p-3 border-bottom bg-light">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-white text-primary border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" 
+                               placeholder="Cerca per nome o email..." 
+                               @bind="searchTerm" @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    @if (users == null)
+                    {
+                        <div class="text-center p-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    }
+                    else if (!users.Any())
+                    {
+                        <div class="p-4 text-center text-muted">Nessun utente trovato.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Email</th>
+                                        <th>Nome e Cognome</th>
+                                        <th>Ruolo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var u in FilteredUsers)
+                                    {
+                                        <tr>
+                                            <td class="ps-4 fw-semibold text-dark">@u.Email</td>
+                                            <td>@u.FullName</td>
+                                            <td>
+                                                @foreach (var r in u.Roles)
+                                                {
+                                                    if (r == "Admin")
+                                                    {
+                                                        <span class="badge bg-danger rounded-pill px-3 me-1">@r</span>
+                                                    }
+                                                    else if (r == "Doctor")
+                                                    {
+                                                        <span class="badge bg-primary rounded-pill px-3 me-1">@r</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-success rounded-pill px-3 me-1">@r</span>
+                                                    }
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<UserViewModel>? users;
+    private List<string> allRoles = new();
+    
+    private string searchTerm = "";
+
+    private IEnumerable<UserViewModel> FilteredUsers =>
+        string.IsNullOrWhiteSpace(searchTerm) || users == null
+            ? users ?? Enumerable.Empty<UserViewModel>()
+            : users.Where(u => u.FullName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                            u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+                            
+    private string newName = "";
+    private string newLastName = "";
+    private string newEmail = "";
+    private string newPassword = "";
+    private string newRole = "";
+    
+    // UI state
+    private string statusMessage = "";
+    private bool statusIsError = false;
+
+    private class UserViewModel
+    {
+        public string Id { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public List<string> Roles { get; set; } = new();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        allRoles = RoleManager.Roles.Select(r => r.Name!).ToList();
+        if (allRoles.Any()) newRole = allRoles[0];
+        
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        var list = new List<UserViewModel>();
+        
+        foreach (var user in await UserManager.Users.ToListAsync())
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            
+            // Estrapoliamo il nome reale dal database
+            string fullName = "-";
+            if (roles.Contains("Doctor"))
+            {
+                var doc = await Db.Doctors.FirstOrDefaultAsync(d => d.IdentityUserId == user.Id);
+                if (doc != null) fullName = $"Dr. {doc.FirstName} {doc.LastName}";
+            }
+            else if (roles.Contains("Patient"))
+            {
+                var pat = await Db.Patients.FirstOrDefaultAsync(p => p.IdentityUserId == user.Id);
+                if (pat != null) fullName = $"{pat.FirstName} {pat.LastName}";
+            }
+            else if (roles.Contains("Admin"))
+            {
+                fullName = "Amministratore";
+            }
+
+            list.Add(new UserViewModel
+            {
+                Id = user.Id,
+                Email = user.Email ?? "",
+                FullName = fullName,
+                Roles = roles.ToList()
+            });
+        }
+
+        users = list;
+    }
+
+    private async Task CreateUser()
+    {
+        statusMessage = "";
+        
+        if (string.IsNullOrWhiteSpace(newEmail) || string.IsNullOrWhiteSpace(newPassword) || 
+            string.IsNullOrWhiteSpace(newName) || string.IsNullOrWhiteSpace(newLastName))
+        {
+            statusMessage = "Tutti i campi (Nome, Cognome, Email e Password) sono obbligatori.";
+            statusIsError = true;
+            return;
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = newEmail,
+            Email = newEmail,
+            EmailConfirmed = true
+        };
+
+        var result = await UserManager.CreateAsync(user, newPassword);
+        if (!result.Succeeded)
+        {
+            statusMessage = string.Join(", ", result.Errors.Select(e => e.Description));
+            statusIsError = true;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(newRole))
+        {
+            await UserManager.AddToRoleAsync(user, newRole);
+
+            if (newRole == "Patient")
+            {
+                Db.Patients.Add(new Patient 
+                { 
+                    IdentityUserId = user.Id, 
+                    FirstName = newName, 
+                    LastName = newLastName 
+                });
+            }
+            else if (newRole == "Doctor")
+            {
+                Db.Doctors.Add(new Doctor 
+                { 
+                    IdentityUserId = user.Id, 
+                    FirstName = newName, 
+                    LastName = newLastName,
+                    IsActive = true,
+                    Bio = "",
+                    Specialization = "Generica"
+                });
+            }
+            await Db.SaveChangesAsync();
+        }
+        
+        statusMessage = $"Utente {newEmail} creato correttamente!";
+        statusIsError = false;
+        
+        newName = "";
+        newLastName = "";
+        newEmail = "";
+        newPassword = "";
+        
+        await LoadUsers();
+    }
+}

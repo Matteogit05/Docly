@@ -1,0 +1,346 @@
+@page "/doctor/{DoctorId:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Docly.Data
+@using Docly.Data.Shared
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+@inject BookingService BookingService
+
+<PageTitle>Dettaglio Medico - Docly</PageTitle>
+
+<div class="container mt-5">
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+        </div>
+    }
+    else if (doctor == null)
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="bi bi-exclamation-triangle"></i> Nessun medico trovato con questo ID oppure il medico non è più attivo.
+        </div>
+        <button class="btn btn-outline-primary mt-3" @onclick='() => NavManager.NavigateTo("/home")'>Torna alla Home</button>
+    }
+    else
+    {
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-8">
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-body p-5">
+                        
+                        <div class="d-flex align-items-center mb-4">
+                            <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-4" style="width: 80px; height: 80px; font-size: 2rem;">
+                                @doctor.FirstName[0]@doctor.LastName[0]
+                            </div>
+                            <div>
+                                <h2 class="mb-1 fw-bold text-dark">Dr. @doctor.FirstName @doctor.LastName</h2>
+                                <h5 class="text-secondary mb-0"><i class="bi bi-briefcase-fill me-2"></i>@doctor.Specialization</h5>
+                            </div>
+                        </div>
+
+                        <hr class="mb-4" />
+
+                        <h5 class="fw-bold mb-3">Informazioni</h5>
+                        <p class="text-muted mb-5" style="line-height: 1.7;">
+                            @(string.IsNullOrWhiteSpace(doctor.Bio) ? "Nessuna biografia disponibile per questo medico." : doctor.Bio)
+                        </p>
+
+                        <AuthorizeView Roles="Patient">
+                            <Authorized>
+                                <div class="d-flex gap-3 flex-wrap">
+                                    
+                                    <button class="btn @(isFavorite ? "btn-outline-danger" : "btn-outline-primary") px-4 py-2 fw-bold" 
+                                            @onclick="ToggleFavorite">
+                                        @if (isFavorite)
+                                        {
+                                            <span><i class="bi bi-star-fill me-2"></i>Rimuovi dai tuoi dottori</span>
+                                        }
+                                        else
+                                        {
+                                            <span><i class="bi bi-star me-2"></i>Aggiungi ai tuoi dottori</span>
+                                        }
+                                    </button>
+
+                                    <button class="btn btn-primary px-4 py-2 fw-bold" @onclick="OpenChat">
+                                        <i class="bi bi-chat-dots-fill me-2"></i>Apri chat
+                                    </button>
+
+                                </div>
+
+                                <hr class="my-5" />
+                                <h4 class="fw-bold mb-4"><i class="bi bi-calendar-check text-primary me-2"></i>Prenota una Visita</h4>
+
+                                @if (!string.IsNullOrEmpty(bookingMessage))
+                                {
+                                    <div class="alert alert-success shadow-sm d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill me-3 fs-4"></i>
+                                        <div>@bookingMessage</div>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <div class="alert alert-danger shadow-sm d-flex align-items-center">
+                                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                                        <div>@errorMessage</div>
+                                    </div>
+                                }
+
+                                <div class="mb-4">
+                                    <label for="bookingDate" class="form-label fw-bold text-secondary">1. Scegli una data:</label>
+                                    <input type="date" id="bookingDate" class="form-control form-control-lg w-auto shadow-sm" 
+                                           min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                           @bind="selectedDate" @bind:after="LoadSlots" />
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-secondary">2. Orari disponibili:</label>
+                                    @if (isLoadingSlots)
+                                    {
+                                        <div class="d-flex align-items-center text-primary mt-2">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                            <span>Ricerca disponibilità in corso...</span>
+                                        </div>
+                                    }
+                                    else if (availableSlots == null || !availableSlots.Any())
+                                    {
+                                        <div class="alert alert-warning py-3 mt-2 border-0 shadow-sm">
+                                            <i class="bi bi-calendar-x me-2"></i>Nessuna disponibilità trovata per la data selezionata.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            @foreach (var slot in availableSlots)
+                                            {
+                                                var isSelected = slot == selectedSlot;
+                                                <button class="btn @(isSelected ? "btn-primary shadow" : "btn-outline-primary bg-white") px-3 py-2 fw-bold"
+                                                        @onclick="() => SelectSlot(slot)">
+                                                    @slot.ToString(@"hh\:mm")
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                @if (selectedSlot != null)
+                                {
+                                    <div class="card bg-light border-0 shadow-sm mt-4 border-start border-primary border-4">
+                                        <div class="card-body p-4">
+                                            <h5 class="card-title fw-bold mb-3">3. Conferma Appuntamento</h5>
+                                            <p class="mb-4 text-dark">
+                                                Stai prenotando una visita per il <strong>@selectedDate.ToString("dd/MM/yyyy")</strong> 
+                                                alle ore <strong>@selectedSlot.Value.ToString(@"hh\:mm")</strong>.
+                                            </p>
+                                            
+                                            <div class="mb-4">
+                                                <label class="form-label fw-bold text-secondary">Note sui sintomi (opzionale):</label>
+                                                <textarea class="form-control shadow-sm" rows="3" @bind="symptomNotes" 
+                                                          placeholder="Descrivi brevemente il motivo della visita o i tuoi sintomi attuali..."></textarea>
+                                            </div>
+
+                                            <button class="btn btn-success btn-lg fw-bold px-4 shadow-sm" 
+                                                    @onclick="ConfirmBooking" disabled="@isBooking">
+                                                @if (isBooking)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span>Prenotazione in corso...</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-calendar-plus-fill me-2"></i><span>Conferma Prenotazione</span>
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+
+                            </Authorized>
+                        </AuthorizeView>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int DoctorId { get; set; }
+
+    private Doctor? doctor;
+    private bool isLoading = true;
+    private bool isFavorite = false;
+    private int? currentPatientId;
+    private DateTime selectedDate = DateTime.Today;
+    private List<TimeSpan> availableSlots = new();
+    private TimeSpan? selectedSlot = null;
+    private string symptomNotes = "";
+    private bool isLoadingSlots = false;
+    private bool isBooking = false;
+    private string bookingMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        doctor = await Db.Doctors
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == DoctorId && d.IsActive);
+
+        if (doctor != null)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true && user.IsInRole("Patient"))
+            {
+                var identityUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (identityUserId != null)
+                {
+                    var patient = await Db.Patients
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.IdentityUserId == identityUserId);
+
+                    if (patient != null)
+                    {
+                        currentPatientId = patient.Id;
+
+                        isFavorite = await Db.FavoriteDoctors
+                            .AnyAsync(f => f.PatientId == currentPatientId && f.DoctorId == DoctorId);
+                    }
+                }
+            }
+        }
+
+        isLoading = false;
+
+        if (currentPatientId != null)
+        {
+            await LoadSlots();
+        }
+    }
+
+    private async Task ToggleFavorite()
+    {
+        if (currentPatientId == null || doctor == null) return;
+
+        if (isFavorite)
+        {
+            var fav = await Db.FavoriteDoctors.FindAsync(currentPatientId.Value, DoctorId);
+            if (fav != null)
+            {
+                Db.FavoriteDoctors.Remove(fav);
+                await Db.SaveChangesAsync();
+                isFavorite = false;
+            }
+        }
+        else
+        {
+            var fav = new FavoriteDoctor { PatientId = currentPatientId.Value, DoctorId = DoctorId };
+            Db.FavoriteDoctors.Add(fav);
+            await Db.SaveChangesAsync();
+            isFavorite = true;
+        }
+    }
+
+    private async Task LoadSlots()
+    {
+        isLoadingSlots = true;
+        selectedSlot = null;
+        bookingMessage = "";
+        errorMessage = "";
+
+        availableSlots = await BookingService.GetAvailableSlotsAsync(DoctorId, selectedDate);
+        isLoadingSlots = false;
+    }
+
+    private void SelectSlot(TimeSpan slot)
+    {
+        selectedSlot = slot;
+    }
+
+    private async Task ConfirmBooking()
+    {
+        if (selectedSlot == null || currentPatientId == null) return;
+
+        isBooking = true;
+        bookingMessage = "";
+        errorMessage = "";
+
+        try
+        {
+            var startDateTime = selectedDate.Date.Add(selectedSlot.Value);
+            var endDateTime = startDateTime.AddMinutes(15);
+
+            var appointment = new Appointment
+            {
+                PatientId = currentPatientId.Value,
+                DoctorId = DoctorId,
+                StartTime = startDateTime,
+                EndTime = endDateTime,
+                Status = 0,
+                SymptomNotes = symptomNotes
+            };
+
+            Db.Appointments.Add(appointment);
+            await Db.SaveChangesAsync();
+
+            bookingMessage = "Prenotazione confermata con successo!";
+            selectedSlot = null;
+            symptomNotes = "";
+
+            await LoadSlots();
+        }
+        catch
+        {
+            errorMessage = "Si è verificato un errore durante la prenotazione.";
+        }
+        finally
+        {
+            isBooking = false;
+        }
+    }
+    private async Task OpenChat()
+    {
+        if (currentPatientId == null) return;
+
+        var chatEsistente = await Db.ChatSessions
+            .FirstOrDefaultAsync(c => c.PatientId == currentPatientId.Value
+                                    && c.DoctorId == DoctorId
+                                    && c.Status == 0
+                                    && c.AppointmentId == null);
+        
+        int chatIdDaAprire;
+
+        if (chatEsistente != null)
+        {
+            chatIdDaAprire = chatEsistente.Id;
+        }
+        else
+        {
+            var nuovaChat = new ChatSession
+            {
+                PatientId = currentPatientId.Value,
+                DoctorId = DoctorId,
+                AppointmentId = null,
+                Status = 0,
+                CreatedAt = DateTime.Now
+            };
+
+            Db.ChatSessions.Add(nuovaChat);
+            await Db.SaveChangesAsync();
+
+            chatIdDaAprire = nuovaChat.Id;
+        }
+
+        NavManager.NavigateTo($"chat?chatId={chatIdDaAprire}");
+    }
+}

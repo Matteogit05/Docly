@@ -1,58 +1,89 @@
-/*using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;*/
+using Microsoft.AspNetCore.Mvc;
 using Docly.Components;
-/*
 using Docly.Data;
-using Docly.Data.Entities;
-*/
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var encKey = builder.Configuration["EncryptionSettings:Key"];
+var encIv = builder.Configuration["EncryptionSettings:Iv"];
+Docly.Helpers.EncryptionHelper.Initialize(encKey, encIv);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-/*
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=docly.db"));
 
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
+// 1. CONFIGURAZIONE IDENTITY E RUOLI
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
-    .AddIdentityCookies();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/";
+    options.AccessDeniedPath = "/";
+});
 
-builder.Services.AddAuthorization();
-*/
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<BookingService>();
+// builder.Services.AddSingleton<ChatNotifierService>();
 
 var app = builder.Build();
 
-/*
+// 2. MODIFICA DEL SEEDER PER PASSARE IL SERVICE PROVIDER
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await DbSeeder.SeedAsync(db);
+    // Passiamo l'intero ServiceProvider al Seeder per potergli far usare RoleManager e UserManager
+    await DbSeeder.SeedAsync(scope.ServiceProvider);
 }
-*/
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-/*
+app.UseStaticFiles(); // Importante per CSS/JS
+app.UseAntiforgery();
+
+// 3. MIDDLEWARE DI AUTENTICAZIONE E AUTORIZZAZIONE
 app.UseAuthentication();
 app.UseAuthorization();
-*/
-app.UseAntiforgery();
+
+// 4. ENDPOINT INVISIBILE PER IL LOGIN (Aggira il limite di Blazor Server sui cookie)
+app.MapPost("/api/auth/login", async (
+    HttpContext context, 
+    SignInManager<ApplicationUser> signInManager, 
+    UserManager<ApplicationUser> userManager,
+    [FromForm] string email, 
+    [FromForm] string password) =>
+{
+    var result = await signInManager.PasswordSignInAsync(email, password, isPersistent: true, lockoutOnFailure: false);
+    
+    if (result.Succeeded)
+    {
+        // Se il login ha successo, andiamo sempre alla Home!
+        return Results.Redirect("/");
+    }
+
+    return Results.Redirect("/login?error=true");
+});
+
+app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.Redirect("/");
+});
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
