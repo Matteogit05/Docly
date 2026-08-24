@@ -175,7 +175,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             });
             entity.HasKey(message => message.Id);
 
-            entity.Property(message => message.Content).HasColumnType("TEXT");
+            entity.Property(message => message.Content)
+                .HasColumnType("TEXT")
+                .HasConversion(
+                    testoInChiaro => Docly.Helpers.EncryptionHelper.EncryptString(testoInChiaro),
+                    testoCriptato => Docly.Helpers.EncryptionHelper.DecryptString(testoCriptato)
+                );
 
             entity.HasOne(message => message.ChatSession)
                 .WithMany(chatSession => chatSession.Messages)

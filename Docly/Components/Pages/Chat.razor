@@ -1,15 +1,18 @@
 @page "/chat"
 @rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims
 @using System.IO
 @using Docly.Data.Entities
+@using Docly.Helpers
 @inject ApplicationDbContext Db
 @inject NavigationManager NavManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
+@attribute [Authorize(Roles = "Patient, Doctor")]
 
 <PageTitle>Messaggi - Docly</PageTitle>
 
@@ -493,7 +496,8 @@
                 
                 var physicalPath = Path.Combine(folderPath, Guid.NewGuid().ToString() + ext);
                 byte[] fileBytes = Convert.FromBase64String(base64Data);
-                await File.WriteAllBytesAsync(physicalPath, fileBytes);
+                byte[] encryptedBytes = EncryptionHelper.EncryptBytes(fileBytes); // CRITTOGRAFA!
+                await File.WriteAllBytesAsync(physicalPath, encryptedBytes);
 
                 var msg = new Message
                 {
@@ -543,8 +547,9 @@
 
         if (File.Exists(att.StoragePath))
         {
-            byte[] fileBytes = await File.ReadAllBytesAsync(att.StoragePath);
-            string base64 = Convert.ToBase64String(fileBytes);
+            byte[] encryptedBytes = await File.ReadAllBytesAsync(att.StoragePath);
+            byte[] decryptedBytes = EncryptionHelper.DecryptBytes(encryptedBytes); // DECRITTA!
+            string base64 = Convert.ToBase64String(decryptedBytes);
             
             string mimeType = "application/octet-stream";
             if (att.FileExtension == ".pdf") mimeType = "application/pdf";

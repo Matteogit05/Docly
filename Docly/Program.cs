@@ -7,6 +7,10 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var encKey = builder.Configuration["EncryptionSettings:Key"];
+var encIv = builder.Configuration["EncryptionSettings:Iv"];
+Docly.Helpers.EncryptionHelper.Initialize(encKey, encIv);
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
